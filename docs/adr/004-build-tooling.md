@@ -9,12 +9,12 @@ UXP plugins using React/TypeScript need a bundler. Adobe's official starter uses
 
 ## Options
 
-| Tool | Bundler | Pros | Cons |
-|------|---------|------|------|
-| **Bolt UXP** | Vite | Modern, fast HMR, React/Svelte/Vue, TS+Sass, MIT | Community-maintained |
-| Adobe React Starter | Webpack 4 | Official | Outdated deps, `acorn-base` errors, stale |
-| SWC UXP React Starter | Webpack 5 | Official, SWC components | Tightly coupled to SWC |
-| Custom Webpack 5 | Webpack 5 | Full control | DIY setup overhead |
+| Tool                  | Bundler   | Pros                                             | Cons                                      |
+| --------------------- | --------- | ------------------------------------------------ | ----------------------------------------- |
+| **Bolt UXP**          | Vite      | Modern, fast HMR, React/Svelte/Vue, TS+Sass, MIT | Community-maintained                      |
+| Adobe React Starter   | Webpack 4 | Official                                         | Outdated deps, `acorn-base` errors, stale |
+| SWC UXP React Starter | Webpack 5 | Official, SWC components                         | Tightly coupled to SWC                    |
+| Custom Webpack 5      | Webpack 5 | Full control                                     | DIY setup overhead                        |
 
 ## Decision
 

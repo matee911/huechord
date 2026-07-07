@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
-import { runAction, uxp, uxpSetup } from "vite-uxp-plugin";
-import react from "@vitejs/plugin-react"; 
+import { runAction, uxp } from "vite-uxp-plugin";
+import react from "@vitejs/plugin-react";
 
 import { config } from "./uxp.config";
 
@@ -16,24 +16,13 @@ const shouldNotEmptyDir =
   mode === "dev" && config.manifest.requiredPermissions?.enableAddon;
 
 export default defineConfig({
-  plugins: [
-    uxp(config, mode),
-    react(), 
-  ],
+  plugins: [uxp(config, mode), react()],
   build: {
     sourcemap: mode && ["dev", "build"].includes(mode) ? true : false,
     minify: false,
     emptyOutDir: !shouldNotEmptyDir,
     rollupOptions: {
-      external: [
-        "photoshop", 
-        "uxp",
-        "fs",
-        "os",
-        "path",
-        "process",
-        "shell",
-      ],
+      external: ["photoshop", "uxp", "fs", "os", "path", "process", "shell"],
       output: {
         // format: "cjs",
         format: "iife", // Needed for Webview UI in Vue to prevent global overrides

@@ -2,9 +2,7 @@ import { describe, it, expect } from "vitest";
 import type {
   RGBColor,
   HSLColor,
-  DominantColor,
   Palette,
-  HarmonyType,
   HarmonyResult,
 } from "../algorithms/types";
 

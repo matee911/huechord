@@ -78,12 +78,9 @@ const colorTable = {
 };
 
 export const getColorScheme = async () => {
-  //@ts-ignore
+  // @ts-expect-error -- document.theme is a UXP-host global, not in DOM lib types
   const theme = document.theme.getCurrent() as
-    | "light"
-    | "dark"
-    | "lightest"
-    | "darkest";
+    "light" | "dark" | "lightest" | "darkest";
   const colors = colorTable[theme];
   return { theme, colors };
 };

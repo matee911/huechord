@@ -9,8 +9,8 @@ const extraPrefs = {
   uniqueIds: true,
 };
 
-export const id = "com.colors.harmony-wheel"; 
-const name = "Color Harmony Wheel"; 
+export const id = "com.colors.harmony-wheel";
+const name = "Color Harmony Wheel";
 
 const manifest: UXP_Manifest = {
   id,
@@ -55,8 +55,7 @@ const manifest: UXP_Manifest = {
         },
       ],
     },
-
-      ],
+  ],
   featureFlags: {
     enableAlerts: true,
   },
@@ -75,7 +74,7 @@ const manifest: UXP_Manifest = {
     },
     allowCodeGenerationFromStrings: true,
   },
-    icons: [
+  icons: [
     {
       width: 48,
       height: 48,

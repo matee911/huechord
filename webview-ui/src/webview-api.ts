@@ -21,9 +21,7 @@ export const updateColorScheme = (val: {
   const { theme, colors } = val;
   console.log("update color scheme", theme, colors);
   const root = document.querySelector(":root") as HTMLElement;
-  for (const key in colors) {
-    //@ts-ignore
-    const color = colors[key];
+  for (const [key, color] of Object.entries(colors)) {
     root.style.setProperty(key, color);
   }
   return "hello from webview";

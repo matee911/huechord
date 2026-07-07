@@ -71,18 +71,21 @@ graph LR
 ```
 
 ### UXP Context (`src/main.ts`, `src/uxp/`, `src/algorithms/`)
+
 - Runs in UXP runtime (not a browser)
 - Has access to Photoshop APIs (`require("photoshop")`)
 - Handles pixel acquisition, color extraction, harmony scoring
 - No DOM rendering (besides minimal panel shell)
 
 ### WebView Context (`src/webview/`)
+
 - Runs in embedded browser (Edge/Safari)
 - Full HTML5 Canvas, SVG, CSS
 - Receives processed data via `postMessage`
 - Purely presentational — no PS API access
 
 ### Algorithms (`src/algorithms/`)
+
 - Pure functions, no side effects, no PS dependencies
 - Fully unit-testable in Node.js
 - Could be extracted to a standalone library
@@ -90,6 +93,7 @@ graph LR
 ## Build Output
 
 Vite produces two bundles:
+
 1. **UXP bundle** -> `plugin/index.js` (loaded by manifest.json)
 2. **WebView bundle** -> `plugin/webview/index.html` + assets (loaded by WebView element)
 

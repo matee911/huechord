@@ -2,12 +2,15 @@ import type {
   ActionDescriptor,
   BatchPlayCommandOptions,
 } from "photoshop/dom/CoreModules";
-import { photoshop, uxp } from "../../globals";
+import { photoshop } from "../../globals";
 
 const { executeAsModal } = photoshop.core;
 const { batchPlay } = photoshop.action;
 
-export const asModal = async (commandName: string, callback: Function) => {
+export const asModal = async <T>(
+  commandName: string,
+  callback: () => Promise<T> | T,
+) => {
   return await executeAsModal(async () => await callback(), { commandName });
 };
 

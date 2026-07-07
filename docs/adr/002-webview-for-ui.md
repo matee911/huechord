@@ -9,11 +9,11 @@ The plugin needs to render a color wheel with positioned dots, harmony overlays,
 
 ## Options
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **UXP native Canvas** | No extra complexity | Basic shapes only, no radial gradients, no complex paths |
-| **UXP native SVG** | Declarative | Buggy for complex SVGs, limited feature support |
-| **WebView** | Full Canvas/SVG/CSS/animations, Edge/Safari engine | Extra message passing, manifest v5 required |
+| Option                | Pros                                               | Cons                                                     |
+| --------------------- | -------------------------------------------------- | -------------------------------------------------------- |
+| **UXP native Canvas** | No extra complexity                                | Basic shapes only, no radial gradients, no complex paths |
+| **UXP native SVG**    | Declarative                                        | Buggy for complex SVGs, limited feature support          |
+| **WebView**           | Full Canvas/SVG/CSS/animations, Edge/Safari engine | Extra message passing, manifest v5 required              |
 
 ## Decision
 

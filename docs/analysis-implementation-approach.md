@@ -65,14 +65,14 @@ sequenceDiagram
 
 ### Events to Listen
 
-| Event | Trigger |
-|-------|---------|
-| `set` | Property changes (curves, levels, hue/sat adjustments) |
-| `historyStepBackward` / `historyStepForward` | Undo/redo |
-| `select` | Layer or document switch |
-| `make` | New layer/adjustment created |
-| `delete` | Layer deleted |
-| `play` | Action played |
+| Event                                        | Trigger                                                |
+| -------------------------------------------- | ------------------------------------------------------ |
+| `set`                                        | Property changes (curves, levels, hue/sat adjustments) |
+| `historyStepBackward` / `historyStepForward` | Undo/redo                                              |
+| `select`                                     | Layer or document switch                               |
+| `make`                                       | New layer/adjustment created                           |
+| `delete`                                     | Layer deleted                                          |
+| `play`                                       | Action played                                          |
 
 ### Debouncing
 
@@ -91,23 +91,25 @@ stateDiagram-v2
 
 ## Performance Budget
 
-| Step | Target | Strategy |
-|------|--------|----------|
-| Event -> debounce | <500ms | Debounce timer |
-| `getPixels` | <100ms | `targetSize: {width: 100}` (~10k pixels) |
-| MMCQ extraction | <50ms | Small input, pure JS |
-| Harmony scoring | <5ms | Simple angle math |
-| WebView render | <16ms | SVG/Canvas update, no full re-render |
-| **Total** | **<700ms** | Near real-time feedback |
+| Step              | Target     | Strategy                                 |
+| ----------------- | ---------- | ---------------------------------------- |
+| Event -> debounce | <500ms     | Debounce timer                           |
+| `getPixels`       | <100ms     | `targetSize: {width: 100}` (~10k pixels) |
+| MMCQ extraction   | <50ms      | Small input, pure JS                     |
+| Harmony scoring   | <5ms       | Simple angle math                        |
+| WebView render    | <16ms      | SVG/Canvas update, no full re-render     |
+| **Total**         | **<700ms** | Near real-time feedback                  |
 
 ## Key Technical Decisions
 
 ### Why composite, not individual layers
+
 - Color grading affects the final look, not individual layers
 - `getPixels()` without `layerID` returns the document composite
 - Single API call instead of merging multiple layers
 
 ### Why WebView over native Canvas
+
 - Color wheel requires radial gradients, arc paths, smooth animations
 - UXP native 2D Canvas is limited to basic shapes
 - UXP native SVG renderer is buggy for complex graphics
@@ -115,6 +117,7 @@ stateDiagram-v2
 - See [ADR-002](adr/002-webview-for-ui.md)
 
 ### Color space handling
+
 - `getPixels` returns data in document color space (usually sRGB)
 - Convert to HSL for wheel positioning: `H` = angle, `S` = distance from center, `L` = brightness
 - Harmony detection operates purely on Hue angles
@@ -122,13 +125,13 @@ stateDiagram-v2
 
 ## Risk Mitigation
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| `executeAsModal` blocks PS UI | User feels lag | Keep modal scope minimal, small targetSize |
-| WebView startup overhead | Slow panel open | Lazy-init WebView, show loading state |
-| Events not firing for all edits | Missed updates | Use broad event set + periodic polling fallback (5s) |
-| Color space mismatch | Wrong colors on wheel | Read document profile, convert consistently |
-| Large documents slow `getPixels` | Lag on 100MP images | `targetSize` makes this independent of doc size |
+| Risk                             | Impact                | Mitigation                                           |
+| -------------------------------- | --------------------- | ---------------------------------------------------- |
+| `executeAsModal` blocks PS UI    | User feels lag        | Keep modal scope minimal, small targetSize           |
+| WebView startup overhead         | Slow panel open       | Lazy-init WebView, show loading state                |
+| Events not firing for all edits  | Missed updates        | Use broad event set + periodic polling fallback (5s) |
+| Color space mismatch             | Wrong colors on wheel | Read document profile, convert consistently          |
+| Large documents slow `getPixels` | Lag on 100MP images   | `targetSize` makes this independent of doc size      |
 
 ## Conclusion
 
