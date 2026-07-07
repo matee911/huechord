@@ -26,6 +26,7 @@ Algorithms in `src/algorithms/` are pure functions with no PS dependencies — f
 
 - Follow DDD, SRP, KISS principles
 - Tests first (AAA pattern). Pyramid: unit > integration > e2e.
+- Domain/business logic in `src/algorithms/` (color extraction, harmony scoring): BDD via Gherkin `.feature` files + `@amiceli/vitest-cucumber`, colocated as `<name>.feature` + `<name>.feature.test.ts` in `src/__tests__/`. Technical/infra code (debounce, dispose, bridge plumbing) stays plain AAA `describe`/`it`.
 - Files: `kebab-case.ts`, Types: `PascalCase`, Functions: `camelCase`
 - Keep algorithms pure and side-effect free
 - `executeAsModal` scopes must be minimal (acquire pixels, exit immediately)

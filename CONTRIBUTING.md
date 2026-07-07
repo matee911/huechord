@@ -110,6 +110,7 @@ docs: update algorithm analysis with octree option
 ## Code Guidelines
 
 - **Tests first** — AAA pattern (Arrange, Act, Assert). See [CLAUDE.md](CLAUDE.md).
+- **BDD for domain logic** — Business logic in `src/algorithms/` (color extraction, harmony scoring) is specified with Gherkin `.feature` files run via `@amiceli/vitest-cucumber`, colocated as `<name>.feature` + `<name>.feature.test.ts` in `src/__tests__/`. Technical/infra code (debounce, dispose, bridge plumbing) uses plain AAA `describe`/`it` instead.
 - **Pure algorithms** — Functions in `src/algorithms/` must have no side effects and no PS imports
 - **Minimal modal scope** — `executeAsModal` blocks must be as short as possible
 - **Dispose pixel data** — Always call `.dispose()` on `PhotoshopImageData` when done
