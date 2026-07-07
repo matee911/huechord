@@ -1,28 +1,48 @@
 import * as Comlink from "comlink";
 
-import type { API } from "../../src/api/api";
 import { updateColorScheme } from "./webview-api";
 
-interface UXPWebviewWindow extends Window {
-  uxpHost: {
-    postMessage: (msg: any) => void;
-    addEventListener: (type: string, handler: Function) => void;
-    removeEventListener: (type: string, handler: Function) => void;
-  };
+// Deliberately not the concrete UXP-side `API` type: the WebView context is
+// purely presentational and must not depend on UXP-only code (see CLAUDE.md).
+interface HostAPI {
+  getColorScheme: () => Promise<Parameters<typeof updateColorScheme>[0]>;
 }
-declare var window: UXPWebviewWindow;
+
+declare global {
+  interface Window {
+    uxpHost: {
+      postMessage: (msg: unknown) => void;
+      addEventListener: (
+        type: string,
+        handler: EventListenerOrEventListenerObject,
+      ) => void;
+      removeEventListener: (
+        type: string,
+        handler: EventListenerOrEventListenerObject,
+      ) => void;
+    };
+  }
+}
 
 const hostEndpoint = {
-  postMessage: (msg: any) => window.uxpHost.postMessage(msg),
-  addEventListener: (type: string, handler: Function) => {
+  postMessage: (msg: unknown) => window.uxpHost.postMessage(msg),
+  addEventListener: (
+    type: string,
+    handler: EventListenerOrEventListenerObject,
+  ) => {
     window.uxpHost.addEventListener("message", handler);
   },
-  removeEventListener: (type: string, handler: Function) => {
+  removeEventListener: (
+    type: string,
+    handler: EventListenerOrEventListenerObject,
+  ) => {
     window.uxpHost.removeEventListener("message", handler);
   },
 };
 
-export const initWebview = (webviewAPI: object): { page: string; api: API } => {
+export const initWebview = (
+  webviewAPI: object,
+): { page: string; api: HostAPI } => {
   const page =
     new URL(location.href).searchParams.get("page") ||
     location.href.split("/").pop()!.replace(".html", "");
@@ -31,8 +51,8 @@ export const initWebview = (webviewAPI: object): { page: string; api: API } => {
   // const endpoint = Comlink.windowEndpoint(hostEndpoint, window);
   const comlinkAPI = Comlink.wrap(endpoint);
   Comlink.expose(webviewAPI, endpoint);
-  //@ts-ignore
-  const api = comlinkAPI.api as API;
+  // @ts-expect-error -- Comlink's Remote<T> wrapper doesn't structurally match the exposed shape
+  const api = comlinkAPI.api as HostAPI;
   // update color scheme on load
   api.getColorScheme().then((scheme) => {
     updateColorScheme(scheme);

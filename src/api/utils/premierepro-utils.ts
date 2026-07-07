@@ -1,4 +1,3 @@
-import { premierepro } from "../../globals";
 import { Action, Project } from "../../types/ppro";
 
 export const asTransaction = async (

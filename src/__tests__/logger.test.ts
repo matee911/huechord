@@ -15,9 +15,7 @@ describe("logger", () => {
   });
 
   it("error with Error object does not throw", () => {
-    expect(() =>
-      logger.error("test error", new Error("boom")),
-    ).not.toThrow();
+    expect(() => logger.error("test error", new Error("boom"))).not.toThrow();
   });
 
   it("info with data does not throw", () => {

@@ -3,7 +3,7 @@ import * as webviewAPI from "./webview-api";
 import { initWebview } from "./webview-setup";
 
 export const App = () => {
-  const { api } = initWebview(webviewAPI);
+  initWebview(webviewAPI);
   const [message, setMessage] = useState("Connecting...");
 
   useEffect(() => {
@@ -23,7 +23,9 @@ export const App = () => {
       }}
     >
       <h2>{message}</h2>
-      <p style={{ opacity: 0.6 }}>WebView context active — postMessage bridge OK</p>
+      <p style={{ opacity: 0.6 }}>
+        WebView context active — postMessage bridge OK
+      </p>
     </main>
   );
 };

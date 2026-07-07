@@ -28,20 +28,24 @@ Use **manifest v5** with **apiVersion 2**, targeting **PS 26.0+** (Photoshop 202
   "name": "Color Harmony Wheel",
   "version": "1.0.0",
   "main": "index.js",
-  "host": [{
-    "app": "PS",
-    "minVersion": "26.0.0",
-    "data": { "apiVersion": 2 }
-  }],
-  "entrypoints": [{
-    "type": "panel",
-    "id": "mainPanel",
-    "label": { "default": "Color Harmony" },
-    "minimumSize": { "width": 280, "height": 300 },
-    "maximumSize": { "width": 600, "height": 800 },
-    "preferredDockedSize": { "width": 300, "height": 400 },
-    "preferredFloatingSize": { "width": 300, "height": 400 }
-  }],
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "26.0.0",
+      "data": { "apiVersion": 2 }
+    }
+  ],
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "mainPanel",
+      "label": { "default": "Color Harmony" },
+      "minimumSize": { "width": 280, "height": 300 },
+      "maximumSize": { "width": 600, "height": 800 },
+      "preferredDockedSize": { "width": 300, "height": 400 },
+      "preferredFloatingSize": { "width": 300, "height": 400 }
+    }
+  ],
   "requiredPermissions": {
     "localFileSystem": "plugin",
     "webview": { "allow": "yes", "domains": [] },

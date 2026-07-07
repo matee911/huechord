@@ -8,7 +8,7 @@ import { getColorScheme } from "./api/uxp";
 interface UXPHTMLWebViewElement extends HTMLElement {
   uxpAllowInspector: string;
   src: string;
-  postMessage: (msg: any) => void;
+  postMessage: (msg: unknown) => void;
 }
 
 export const webviewInitHost = (params: {
@@ -16,15 +16,15 @@ export const webviewInitHost = (params: {
   multi: boolean | string[];
 }): Promise<WebviewAPI[]> => {
   const multi = params ? params.multi : false;
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     let pages = ["main"];
     if (multi === true || Array.isArray(multi)) {
-      pages = config.manifest.entrypoints.map(
-        (point) => point.id.split(".")!.pop()!,
+      pages = config.manifest.entrypoints.map((point) =>
+        point.id.split(".")!.pop()!,
       );
       console.log("webviewInitHost multi pages", pages);
     }
-    let apis: WebviewAPI[] = [];
+    const apis: WebviewAPI[] = [];
     pages.map((page, i) => {
       // if (i > 0) return;
       let webview = document.createElement("webview") as UXPHTMLWebViewElement;
@@ -48,23 +48,33 @@ export const webviewInitHost = (params: {
       webview = parent!.appendChild(webview) as UXPHTMLWebViewElement;
 
       webview.addEventListener("message", (e) => {
-        console.log("webview message", page, e.message);
+        console.log(
+          "webview message",
+          page,
+          (e as Event & { message: unknown }).message,
+        );
       });
       let loaded = false;
-      webview.addEventListener("loadstop", (e) => {
+      webview.addEventListener("loadstop", (_e) => {
         if (loaded) return;
         loaded = true;
         const backendAPI = { api };
         const backendEndpoint = {
-          postMessage: (msg: any, transferrables: any) => {
-            console.log("running postMessage", page, msg), transferrables;
+          postMessage: (msg: unknown, transferrables: unknown) => {
+            console.log("running postMessage", page, msg, transferrables);
             return webview!.postMessage(msg);
           },
-          addEventListener: (type: string, handler: any) => {
+          addEventListener: (
+            type: string,
+            handler: EventListenerOrEventListenerObject,
+          ) => {
             console.log("running addEventListener", webview!.addEventListener);
             webview!.addEventListener("message", handler);
           },
-          removeEventListener: (type: string, handler: any) => {
+          removeEventListener: (
+            type: string,
+            handler: EventListenerOrEventListenerObject,
+          ) => {
             console.log(
               "running removeEventListener",
               webview!.removeEventListener,
@@ -78,7 +88,7 @@ export const webviewInitHost = (params: {
         const endpoint = Comlink.windowEndpoint(backendEndpoint);
 
         // Now we bind to the Webview's APIs
-        //@ts-ignore
+        // @ts-expect-error -- Comlink's Remote<T> wrapper doesn't structurally match WebviewAPI
         const comlinkAPI = Comlink.wrap(endpoint) as WebviewAPI;
         // TODO: might need to adjust for multi webviews
         apis.push(comlinkAPI);
@@ -94,7 +104,7 @@ export const webviewInitHost = (params: {
             getColorScheme().then((scheme) => {
               api.updateColorScheme(scheme);
             });
-            //@ts-ignore
+            // @ts-expect-error -- document.theme is a UXP-host global, not in DOM lib types
             document.theme.onUpdated.addListener(() =>
               getColorScheme().then((scheme) => {
                 api.updateColorScheme(scheme);

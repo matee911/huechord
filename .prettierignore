@@ -1,0 +1,7 @@
+node_modules
+dist
+plugin
+public
+ccx
+zip
+yarn.lock

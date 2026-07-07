@@ -29,6 +29,7 @@ graph LR
 **Goal**: Confirm tooling works end-to-end (UXP context → WebView → postMessage).
 
 ### Scope
+
 - `yarn create bolt-uxp` (React + TypeScript)
 - Configure `uxp.config.ts`: manifest v5, apiVersion 2, WebView permissions, PS 26.0+ target
 - Empty panel loads in Photoshop
@@ -39,10 +40,12 @@ graph LR
   - Designed for future swap to Sentry/external provider (see [Future](#future-scope))
 
 ### Tests
+
 - Smoke test: `logger.info/warn/error` don't throw
 - Smoke test: shared types importable
 
 ### Definition of Done
+
 - [ ] `yarn build` succeeds
 - [ ] `yarn dev` starts, plugin loads in Photoshop via UDT
 - [ ] WebView displays "Hello" received from UXP context
@@ -56,16 +59,19 @@ graph LR
 **Goal**: Confirm live pixel data flows from Photoshop to plugin on every edit.
 
 ### Scope
+
 - `src/uxp/imaging.ts` — `getPixels` wrapper with `executeAsModal`, `targetSize: {width: 100}`, auto-dispose
 - `src/uxp/events.ts` — `addNotificationListener` on `set`, `select`, `make`, `delete`, `historyStepBackward`, `historyStepForward`
 - `src/lib/debounce.ts` — generic debounce utility (pure, testable)
 - Wire together: PS event → debounce(400ms) → getPixels → log pixel count + timing to console
 
 ### Tests
+
 - `debounce.test.ts`: fires after delay, resets on repeated calls, cancellable
 - `imaging.test.ts`: dispose called after callback (mock `PhotoshopImageData`)
 
 ### Definition of Done
+
 - [ ] Panel logs `"Got 10000 pixels in Xms"` after every brush stroke / adjustment in PS
 - [ ] No pixel data leaks (dispose always called)
 - [ ] Debounce prevents excessive calls during slider drags
@@ -78,12 +84,14 @@ graph LR
 **Goal**: Extract dominant colors from pixel data. Algorithm fully unit-tested without Photoshop.
 
 ### Scope
+
 - `src/algorithms/types.ts` — `RGBColor`, `HSLColor`, `DominantColor` (with weight), `Palette`
 - `src/algorithms/color-convert.ts` — `rgbToHsl`, `hslToRgb`
 - `src/algorithms/color-extraction.ts` — MMCQ via `quantize` library, returns 5-8 `DominantColor`s
 - Integrate with pipeline: extracted palette logged to console as `[{r,g,b,h,s,l,weight}]`
 
 ### Tests
+
 - `color-convert.test.ts`: known RGB↔HSL pairs (red=0°, green=120°, blue=240°, white, black, grays)
 - `color-convert.test.ts`: round-trip consistency `rgb → hsl → rgb`
 - `color-extraction.test.ts`: single-color image → 1 dominant color
@@ -91,6 +99,7 @@ graph LR
 - `color-extraction.test.ts`: real-world-like RGBA buffer → returns 5-8 colors sorted by weight
 
 ### Definition of Done
+
 - [ ] Console shows extracted palette after each edit in PS
 - [ ] Extraction completes in <50ms (logged timing)
 - [ ] All unit tests pass on pure data (no PS dependency)
@@ -103,6 +112,7 @@ graph LR
 **Goal**: First visual MVP — user sees dominant colors on a color wheel, updating live during editing.
 
 ### Scope
+
 - `src/uxp/bridge.ts` — typed `postMessage` bridge (UXP → WebView), message schema
 - `src/webview/index.html` + `src/webview/app.ts` — WebView entrypoint, message handler
 - `src/webview/components/ColorWheel.ts` — HSL color wheel (Canvas or SVG), dominant colors as positioned dots (hue=angle, saturation=distance from center)
@@ -111,10 +121,12 @@ graph LR
 - Dot size proportional to color weight
 
 ### Tests
+
 - `bridge.test.ts`: message serialization/deserialization contract (UXP sends X, WebView receives X)
 - `bridge.test.ts`: handles malformed messages gracefully (logs via logger, doesn't crash)
 
 ### Definition of Done
+
 - [ ] Color wheel renders in the panel with positioned dots
 - [ ] Dots update live when user adjusts curves/levels/hue-sat
 - [ ] Palette bar shows dominant colors below the wheel
@@ -129,6 +141,7 @@ graph LR
 **Goal**: Core value — user sees which color harmony their grading is closest to and how far off they are.
 
 ### Scope
+
 - `src/algorithms/harmony.ts`:
   - Harmony templates: complementary, analogous, triadic, split-complementary (4 is enough for MVP)
   - Scoring: angular distance between dominant hue positions and ideal harmony positions
@@ -139,6 +152,7 @@ graph LR
 - Bridge extended: palette + harmony result sent to WebView
 
 ### Tests
+
 - `harmony.test.ts`: pure red + pure cyan (180° apart) → complementary ~100%
 - `harmony.test.ts`: three colors at 0°, 120°, 240° → triadic ~100%
 - `harmony.test.ts`: analogous cluster at 30°, 45°, 60° → analogous high score
@@ -146,6 +160,7 @@ graph LR
 - `harmony.test.ts`: single dominant color → graceful result (monochromatic or N/A)
 
 ### Definition of Done
+
 - [ ] Closest harmony name + percentage displayed in panel
 - [ ] Harmony overlay visible on color wheel
 - [ ] Score updates live with edits
@@ -160,6 +175,7 @@ graph LR
 **Goal**: Production-quality behavior. Plugin doesn't crash or mislead on unexpected input.
 
 ### Scope
+
 - Filter near-black (L<5%) and near-white (L>95%) from dominant colors before harmony analysis
 - Saturation weighting: desaturated colors (S<10%) de-prioritized in harmony scoring
 - Fallback polling: re-analyze every 5s even without events (catches missed events)
@@ -171,6 +187,7 @@ graph LR
 - Logger: structured error logging for all failure paths
 
 ### Tests
+
 - `color-extraction.test.ts`: all-black image → empty/minimal palette
 - `color-extraction.test.ts`: all-white image → empty/minimal palette
 - `color-extraction.test.ts`: grayscale image → low-saturation results
@@ -179,6 +196,7 @@ graph LR
 - `debounce.test.ts`: rapid fire → only last call executed
 
 ### Definition of Done
+
 - [ ] All edge case states render appropriate UI messages
 - [ ] No unhandled errors in UDT console across 30min editing session
 - [ ] End-to-end pipeline <700ms confirmed on 50MP+ document
@@ -192,17 +210,17 @@ graph LR
 
 Not in scope now, but architecture supports these without major refactor:
 
-| Feature | Effort | Enabled by |
-|---------|--------|------------|
-| **Sentry integration** | Low | `logger.ts` abstraction — swap implementation to `@sentry/browser` in WebView, forward UXP errors via bridge |
-| Top-3 harmonies ranked | Low | `harmony.ts` already scores all — just expose sorted list |
-| "Nudge" suggestions ("shift hue +15° for triadic") | Medium | Harmony scoring knows the delta |
-| Region of Interest (analyze selection only) | Medium | `sourceBounds` param in `getPixels` |
-| Per-layer analysis | Medium | `layerID` param in `getPixels` |
-| Palette export (ASE, JSON, CSS) | Low | Palette data already structured |
-| Tetradic + square harmonies | Low | Add templates to `harmony.ts` |
-| Configurable color count / sensitivity | Low | Parameterize MMCQ max colors |
-| Marketplace distribution | Medium | `.ccx` packaging, signing, notarization |
+| Feature                                            | Effort | Enabled by                                                                                                   |
+| -------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
+| **Sentry integration**                             | Low    | `logger.ts` abstraction — swap implementation to `@sentry/browser` in WebView, forward UXP errors via bridge |
+| Top-3 harmonies ranked                             | Low    | `harmony.ts` already scores all — just expose sorted list                                                    |
+| "Nudge" suggestions ("shift hue +15° for triadic") | Medium | Harmony scoring knows the delta                                                                              |
+| Region of Interest (analyze selection only)        | Medium | `sourceBounds` param in `getPixels`                                                                          |
+| Per-layer analysis                                 | Medium | `layerID` param in `getPixels`                                                                               |
+| Palette export (ASE, JSON, CSS)                    | Low    | Palette data already structured                                                                              |
+| Tetradic + square harmonies                        | Low    | Add templates to `harmony.ts`                                                                                |
+| Configurable color count / sensitivity             | Low    | Parameterize MMCQ max colors                                                                                 |
+| Marketplace distribution                           | Medium | `.ccx` packaging, signing, notarization                                                                      |
 
 ## Logger Abstraction Design
 

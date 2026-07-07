@@ -9,12 +9,12 @@ The plugin needs to extract 5-8 dominant colors from a downsampled document comp
 
 ## Options
 
-| Algorithm | Speed (10k px) | Deterministic | JS Ecosystem |
-|-----------|----------------|---------------|--------------|
-| **MMCQ** | ~10-20ms | Yes | quantize, node-vibrant, colorthief |
-| **K-Means++** | ~30-50ms | No | Custom impl needed |
-| **Octree** | ~15-25ms | Yes | Few JS libs |
-| **Fuzzy C-Means** | ~100ms+ | No | Overkill |
+| Algorithm         | Speed (10k px) | Deterministic | JS Ecosystem                       |
+| ----------------- | -------------- | ------------- | ---------------------------------- |
+| **MMCQ**          | ~10-20ms       | Yes           | quantize, node-vibrant, colorthief |
+| **K-Means++**     | ~30-50ms       | No            | Custom impl needed                 |
+| **Octree**        | ~15-25ms       | Yes           | Few JS libs                        |
+| **Fuzzy C-Means** | ~100ms+        | No            | Overkill                           |
 
 ## Decision
 
