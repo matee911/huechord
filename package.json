@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@adobe/cc-ext-uxp-types": "https://github.com/justintaylor-dev/cc-ext-uxp-types.git",
+    "@amiceli/vitest-cucumber": "^7.0.0",
     "@eslint/js": "^9.18.0",
     "@types/node": "^20.8.7",
     "@types/photoshop": "^25.0.2",
