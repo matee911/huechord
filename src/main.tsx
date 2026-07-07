@@ -1,6 +1,9 @@
 import React, { useEffect } from "react";
 import { webviewInitHost } from "./webview-setup-host";
 import { logger } from "./lib/logger";
+import { debounce } from "./lib/debounce";
+import { acquirePixels } from "./uxp/imaging";
+import { listenForDocumentChanges } from "./uxp/events";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- required by TS to augment the global JSX namespace
@@ -26,6 +29,22 @@ export const App = () => {
       });
     });
   }, [webviewUI]);
+
+  useEffect(() => {
+    const debouncedAcquire = debounce(() => {
+      void acquirePixels();
+    }, 400);
+
+    let unsubscribe: (() => Promise<void>) | undefined;
+    listenForDocumentChanges(debouncedAcquire).then((unsub) => {
+      unsubscribe = unsub;
+    });
+
+    return () => {
+      debouncedAcquire.cancel();
+      void unsubscribe?.();
+    };
+  }, []);
 
   return (
     <>
