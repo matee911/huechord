@@ -1,9 +1,7 @@
 import React, { useEffect } from "react";
 import { webviewInitHost } from "./webview-setup-host";
 import { logger } from "./lib/logger";
-import { debounce } from "./lib/debounce";
-import { acquirePixels } from "./uxp/imaging";
-import { listenForDocumentChanges } from "./uxp/events";
+import { startPixelPipeline } from "./uxp/pixel-pipeline";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- required by TS to augment the global JSX namespace
@@ -30,42 +28,7 @@ export const App = () => {
     });
   }, [webviewUI]);
 
-  useEffect(() => {
-    const debouncedAcquire = debounce(() => {
-      void acquirePixels();
-    }, 400);
-
-    // Cleanup can run before the subscription resolves (unmount, StrictMode's
-    // double-invoke, a quick panel close/reopen). Without the flag the listener
-    // registers a moment later and is never removed, so it keeps driving
-    // acquisition for the rest of the session and stacks up on every remount.
-    let cancelled = false;
-    let unsubscribe: (() => Promise<void>) | undefined;
-
-    const unsubscribeSafely = (unsub: () => Promise<void>) => {
-      unsub().catch((error) => {
-        logger.error(
-          "Failed to unsubscribe from document changes",
-          error as Error,
-        );
-      });
-    };
-
-    listenForDocumentChanges(debouncedAcquire)
-      .then((unsub) => {
-        if (cancelled) unsubscribeSafely(unsub);
-        else unsubscribe = unsub;
-      })
-      .catch((error) => {
-        logger.error("Failed to subscribe to document changes", error as Error);
-      });
-
-    return () => {
-      cancelled = true;
-      debouncedAcquire.cancel();
-      if (unsubscribe) unsubscribeSafely(unsubscribe);
-    };
-  }, []);
+  useEffect(() => startPixelPipeline(), []);
 
   return (
     <>

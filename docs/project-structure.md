@@ -24,6 +24,7 @@ colors/
 │   ├── uxp/
 │   │   ├── imaging.ts            # getPixels wrapper, executeAsModal, dispose
 │   │   ├── events.ts             # PS event listener setup & management
+│   │   ├── pixel-pipeline.ts     # Wires document changes to debounced acquisition
 │   │   └── bridge.ts             # postMessage bridge to WebView
 │   ├── algorithms/
 │   │   ├── color-extraction.ts   # MMCQ / K-Means dominant color extraction
