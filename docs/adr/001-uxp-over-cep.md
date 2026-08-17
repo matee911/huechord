@@ -2,6 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2025-02-25
+**Amended**: 2026-08-17 — minimum Photoshop version corrected
 
 ## Context
 
@@ -22,5 +23,8 @@ Use **UXP** (Unified Extensibility Platform) as the plugin platform.
 ## Consequences
 
 - Must work within UXP's limited HTML/CSS subset (mitigated by WebView — see [ADR-002](002-webview-for-ui.md))
-- Requires `executeAsModal` for pixel access (apiVersion 2)
-- Plugin requires PS 23.3.0+ minimum
+- Requires `executeAsModal` for pixel access (apiVersion 2), including read-only
+  reads — see [ADR-006](006-manifest-v6.md)
+- Plugin requires PS 26.0+ minimum, set by the manifest version — see
+  [ADR-006](006-manifest-v6.md). This line previously said 23.3.0, which was
+  manifest v5's floor rather than a decision taken here.
