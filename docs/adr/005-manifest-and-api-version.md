@@ -61,4 +61,7 @@ Use **manifest v5** with **apiVersion 2**, targeting **PS 26.0+** (Photoshop 202
 
 - Users on PS 25.x or older cannot use the plugin
 - Must test on both Windows (Edge WebView2) and macOS (Safari WebView)
-- `executeAsModal` required for all pixel access operations
+- `executeAsModal` required for all pixel access operations — **including read-only
+  reads such as `imaging.getPixels`**. Photoshop rejects them outside a modal scope
+  with "The requested functionality is only allowed from inside a modal scope",
+  regardless of the call not mutating the document. Read-only is not an exemption.
