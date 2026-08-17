@@ -5,6 +5,8 @@ import type { WebviewAPI } from "../webview-ui/src/webview";
 import { id, config } from "../uxp.config";
 import { getColorScheme } from "./api/uxp";
 
+const isDev = import.meta.env.VITE_BOLT_MODE === "dev";
+
 interface UXPHTMLWebViewElement extends HTMLElement {
   uxpAllowInspector: string;
   src: string;
@@ -30,11 +32,12 @@ export const webviewInitHost = (params: {
       let webview = document.createElement("webview") as UXPHTMLWebViewElement;
       webview.className = "webview-ui";
       webview.id = `webview-${i}`;
-      webview.uxpAllowInspector = "true";
-      const origin =
-        import.meta.env.VITE_BOLT_MODE === "dev"
-          ? `http://localhost:${import.meta.env.VITE_BOLT_WEBVIEW_PORT}/?page=${page}`
-          : `plugin:/webview-ui/${page}.html`;
+      // Development affordance: an installed plugin should not hand every user
+      // an inspector into its own WebView.
+      webview.uxpAllowInspector = String(isDev);
+      const origin = isDev
+        ? `http://localhost:${import.meta.env.VITE_BOLT_WEBVIEW_PORT}/?page=${page}`
+        : `plugin:/webview-ui/${page}.html`;
       webview.src = origin;
 
       const appElement = document.getElementById("app")!;

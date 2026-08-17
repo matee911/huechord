@@ -11,6 +11,10 @@ const extraPrefs = {
   uniqueIds: true,
 };
 
+// Read from the environment rather than vite.config.ts, which sets
+// VITE_BOLT_MODE only after this module has already been imported and evaluated.
+const isDev = process.env.MODE === "dev";
+
 export const id = "com.colors.harmony-wheel";
 const name = "Color Harmony Wheel";
 
@@ -63,11 +67,14 @@ const manifest: UXP_Manifest = {
   },
   requiredPermissions: {
     localFileSystem: "plugin",
-    network: {
-      domains: [
-        `ws://localhost:${extraPrefs.hotReloadPort}`, // Required for hot reload
-      ],
-    },
+    // The hot-reload socket exists only while developing. Shipping the
+    // permission would let the installed plugin talk to whatever else on the
+    // user's machine happens to be listening on that port.
+    ...(isDev && {
+      network: {
+        domains: [`ws://localhost:${extraPrefs.hotReloadPort}`],
+      },
+    }),
     webview: {
       allow: "yes",
       allowLocalRendering: "yes",
