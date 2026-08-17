@@ -38,12 +38,28 @@ Feature: RGB and HSL conversion
 
     Examples:
       | r   | g   | b   |
+      | 249 | 132 | 7   |
+      | 150 | 200 | 40  |
+      | 40  | 190 | 160 |
       | 37  | 150 | 190 |
+      | 130 | 40  | 200 |
       | 200 | 30  | 60  |
       | 12  | 12  | 13  |
       | 255 | 255 | 255 |
       | 0   | 0   | 0   |
-      | 249 | 132 | 7   |
+
+  Scenario Outline: Hue outside the wheel is wrapped back onto it
+    Given the HSL color <h>, 100, 50
+    When it is converted to RGB
+    Then the result equals the conversion of hue <equivalent>
+
+    Examples:
+      | h    | equivalent |
+      | -30  | 330        |
+      | -120 | 240        |
+      | 360  | 0          |
+      | 420  | 60         |
+      | 750  | 30         |
 
   Scenario: Hue stays inside the wheel
     Given every RGB combination of the channel values 0, 51, 128, 204 and 255

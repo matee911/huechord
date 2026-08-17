@@ -83,6 +83,31 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
     },
   );
 
+  // The wheel is periodic, so an angle outside [0, 360) is a legal way to name
+  // a color rather than bad input -- harmony offsets are computed by adding and
+  // subtracting degrees, which routinely walks off both ends.
+  ScenarioOutline(
+    "Hue outside the wheel is wrapped back onto it",
+    ({ Given, When, Then }, variables) => {
+      let hsl: HSLColor;
+      let rgb: RGBColor;
+
+      Given("the HSL color <h>, 100, 50", () => {
+        hsl = { h: num(variables.h), s: 100, l: 50 };
+      });
+
+      When("it is converted to RGB", () => {
+        rgb = hslToRgb(hsl);
+      });
+
+      Then("the result equals the conversion of hue <equivalent>", () => {
+        expect(rgb).toEqual(
+          hslToRgb({ h: num(variables.equivalent), s: 100, l: 50 }),
+        );
+      });
+    },
+  );
+
   Scenario("Hue stays inside the wheel", ({ Given, When, Then, And }) => {
     const channels = [0, 51, 128, 204, 255];
     let combinations: RGBColor[];
