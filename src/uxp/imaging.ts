@@ -1,12 +1,6 @@
 import { photoshop } from "../globals";
 import { logger } from "../lib/logger";
 
-// Derived from the API rather than imported, so it tracks @types/photoshop
-// without depending on that package's internal module layout.
-type PhotoshopImageData = Awaited<
-  ReturnType<typeof photoshop.imaging.getPixels>
->["imageData"];
-
 export interface PixelAcquisitionResult {
   pixelCount: number;
   durationMs: number;
@@ -29,13 +23,12 @@ export const acquirePixels = async (): Promise<
   acquisitionInFlight = true;
   const start = Date.now();
 
-  // Captured by assignment inside the scope rather than through the resolved
-  // value, so the handle is reachable for disposal even if executeAsModal
-  // rejects during teardown, after getPixels already allocated it.
-  let acquired: PhotoshopImageData | undefined;
+  // Bound the instant the handle exists, so disposal still happens if
+  // executeAsModal rejects during teardown after getPixels allocated it.
+  let dispose: (() => Promise<void>) | undefined;
 
   try {
-    await photoshop.core.executeAsModal(
+    const imageData = await photoshop.core.executeAsModal(
       async () => {
         const { imageData } = await photoshop.imaging.getPixels({
           targetSize: { width: 100 },
@@ -45,16 +38,15 @@ export const acquirePixels = async (): Promise<
           componentSize: 8,
         });
 
-        acquired = imageData;
+        dispose = () => imageData.dispose();
+        return imageData;
       },
       { commandName: "Acquire pixels for color harmony analysis" },
     );
 
-    if (!acquired) return undefined;
-
     // Height follows the document's aspect ratio — targetSize constrains
     // width only, so this is not a fixed number.
-    const pixelCount = acquired.width * acquired.height;
+    const pixelCount = imageData.width * imageData.height;
     const durationMs = Date.now() - start;
     logger.info(`Got ${pixelCount} pixels in ${durationMs}ms`);
     return { pixelCount, durationMs };
@@ -64,7 +56,16 @@ export const acquirePixels = async (): Promise<
     logger.error("Pixel acquisition failed", error as Error);
     return undefined;
   } finally {
-    await acquired?.dispose();
+    // Reset first: disposal sits outside the catch above, so a throwing dispose
+    // would otherwise skip it and leave the guard stuck on, silencing the panel
+    // for the rest of the session. try/catch rather than .catch() because the
+    // host may throw synchronously despite the Promise return type.
     acquisitionInFlight = false;
+
+    try {
+      await dispose?.();
+    } catch (error) {
+      logger.error("Failed to dispose pixel data", error as Error);
+    }
   }
 };

@@ -112,6 +112,32 @@ describe("acquirePixels", () => {
     expect(result).toBeUndefined();
   });
 
+  // A failing dispose must not wedge the in-flight guard: if it did, every
+  // later acquisition would be skipped and the panel would go silent for the
+  // rest of the session.
+  it("keeps working after a dispose failure", async () => {
+    hostReturns({
+      width: 100,
+      height: 75,
+      dispose: vi.fn(() => {
+        throw new Error("handle already released");
+      }),
+    });
+
+    const first = await acquirePixels();
+    const second = await acquirePixels();
+
+    expect(first).toEqual({ pixelCount: 7500, durationMs: expect.any(Number) });
+    expect(second).toEqual({
+      pixelCount: 7500,
+      durationMs: expect.any(Number),
+    });
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      "Failed to dispose pixel data",
+      expect.any(Error),
+    );
+  });
+
   // Asserts the message itself, not just the returned object — a reworded or
   // deleted log would otherwise slip through green while the panel went silent.
   it("logs the pixel count and duration", async () => {

@@ -42,9 +42,18 @@ export const App = () => {
     let cancelled = false;
     let unsubscribe: (() => Promise<void>) | undefined;
 
+    const unsubscribeSafely = (unsub: () => Promise<void>) => {
+      unsub().catch((error) => {
+        logger.error(
+          "Failed to unsubscribe from document changes",
+          error as Error,
+        );
+      });
+    };
+
     listenForDocumentChanges(debouncedAcquire)
       .then((unsub) => {
-        if (cancelled) void unsub();
+        if (cancelled) unsubscribeSafely(unsub);
         else unsubscribe = unsub;
       })
       .catch((error) => {
@@ -54,7 +63,7 @@ export const App = () => {
     return () => {
       cancelled = true;
       debouncedAcquire.cancel();
-      void unsubscribe?.();
+      if (unsubscribe) unsubscribeSafely(unsubscribe);
     };
   }, []);
 
