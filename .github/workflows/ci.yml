@@ -11,7 +11,8 @@ permissions:
 jobs:
   test:
 [redacted]
-    # Guards against this repo's visibility or collaborator set changing later.
+    # Note this does NOT guard against a new collaborator: their branch is
+    # in-repo, so it passes and runs. Only the visibility change is covered.
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
