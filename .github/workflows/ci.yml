@@ -50,3 +50,8 @@ jobs:
 
       - name: Test
         run: yarn test
+
+      # Kept as separate steps rather than a single `yarn verify` so a failure
+      # names itself in the job list. ci-workflow.test.ts holds the two in sync.
+      - name: Build
+        run: yarn build

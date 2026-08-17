@@ -14,9 +14,10 @@ Thanks for your interest in contributing to Color Harmony Wheel.
 ## First-Time Setup
 
 ```bash
-# 1. Clone & install
+# 1. Clone & install — both workspaces, or the build in step 5 fails
 git clone <repo-url> && cd colors
 yarn install
+(cd webview-ui && yarn install)
 
 # 2. Install UXP Developer Tool (if not installed)
 #    Creative Cloud Desktop > All Apps > search "UXP Developer Tools" > Install
@@ -103,7 +104,9 @@ docs: update algorithm analysis with octree option
 
 1. Create a feature branch from `main`
 2. Write/update tests for any algorithm changes
-3. Ensure `yarn test && yarn typecheck && yarn lint` pass
+3. Ensure `yarn verify` passes — lint, format, typecheck, tests and the build.
+   The pre-push hook runs it for you; CI runs the same set as separate steps.
+   Nothing on GitHub blocks a merge on a red run, so this is the real gate
 4. Keep PRs focused — one feature or fix per PR
 5. Update relevant docs/ADRs if architecture changes
 

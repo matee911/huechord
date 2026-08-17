@@ -30,3 +30,46 @@ describe("ci workflow", () => {
     expect(workflow).toContain("persist-credentials: false");
   });
 });
+
+// GitHub cannot block a merge on a red run here — branch protection needs a
+// paid plan for a private repo — so the two places that check the code are the
+// pre-push hook and a run nobody is forced to read. They are only worth
+// anything if they check the same things.
+describe("verification is defined in one place", () => {
+  const packageJson = JSON.parse(
+    readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), "../../package.json"),
+      "utf8",
+    ),
+  ) as {
+    scripts: Record<string, string>;
+    "simple-git-hooks": Record<string, string>;
+  };
+
+  const verifySteps = packageJson.scripts.verify
+    .split("&&")
+    .map((step) => step.trim().replace(/^yarn /, ""));
+
+  it("runs the full verification before a push", () => {
+    expect(packageJson["simple-git-hooks"]["pre-push"]).toBe("yarn verify");
+  });
+
+  it("checks the build, not only the tests", () => {
+    expect(verifySteps).toContain("build");
+  });
+
+  it.each(["lint", "format:check", "typecheck", "test", "build"])(
+    "covers %s in CI as well",
+    (step) => {
+      expect(workflow).toContain(`run: yarn ${step}`);
+    },
+  );
+
+  it("leaves nothing in the local check that CI does not also run", () => {
+    const missingFromCi = verifySteps.filter(
+      (step) => !workflow.includes(`run: yarn ${step}`),
+    );
+
+    expect(missingFromCi).toEqual([]);
+  });
+});
