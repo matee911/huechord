@@ -8,9 +8,10 @@ export interface PixelAcquisitionResult {
 
 let acquisitionInFlight = false;
 
-// imaging.getPixels() is read-only — it doesn't modify document, UI, or
-// preference state — so per Adobe's executeAsModal docs it doesn't need
-// modal scope, unlike batchPlay-based mutations elsewhere in this codebase.
+// Photoshop refuses imaging.getPixels() outside a modal scope ("The requested
+// functionality is only allowed from inside a modal scope"), read-only or not.
+// The scope wraps acquisition alone — measuring and disposing happen outside
+// it, so the document stays blocked for as little time as possible.
 export const acquirePixels = async (): Promise<
   PixelAcquisitionResult | undefined
 > => {
@@ -23,15 +24,24 @@ export const acquirePixels = async (): Promise<
   const start = Date.now();
 
   try {
-    const { imageData } = await photoshop.imaging.getPixels({
-      targetSize: { width: 100 },
-      // Requested explicitly so pixel data is predictable regardless of the
-      // source document's bit depth (8/16/32-bit) or color mode.
-      colorSpace: "RGB",
-      componentSize: 8,
-    });
+    const imageData = await photoshop.core.executeAsModal(
+      async () => {
+        const { imageData } = await photoshop.imaging.getPixels({
+          targetSize: { width: 100 },
+          // Requested explicitly so pixel data is predictable regardless of the
+          // source document's bit depth (8/16/32-bit) or color mode.
+          colorSpace: "RGB",
+          componentSize: 8,
+        });
+
+        return imageData;
+      },
+      { commandName: "Acquire pixels for color harmony analysis" },
+    );
 
     try {
+      // Height follows the document's aspect ratio — targetSize constrains
+      // width only, so this is not a fixed number.
       const pixelCount = imageData.width * imageData.height;
       const durationMs = Date.now() - start;
       logger.info(`Got ${pixelCount} pixels in ${durationMs}ms`);

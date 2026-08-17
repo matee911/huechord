@@ -1,18 +1,16 @@
 import { photoshop } from "../globals";
 
-// Deliberately incomplete: some operations (Camera Raw Filter, dialogs from
-// third-party plugins) fire only one event after their dialog closes, or
-// none at all. This is a known gap in the PS notification API, not an
-// oversight — Step 5 adds a polling fallback to compensate. Don't try to
-// "complete" this list; extend the polling fallback instead.
-const DOCUMENT_CHANGE_EVENTS = [
-  "set",
-  "select",
-  "make",
-  "delete",
-  "historyStepBackward",
-  "historyStepForward",
-];
+// Measured against a live Photoshop with an {event: "all"} listener: a brush
+// stroke emits hostFocusChanged / toolModalStateChanged / historyStateChanged,
+// an adjustment emits invokeCommand / modalStateChanged / historyStateChanged /
+// <adjustment name>. historyStateChanged is the only event common to both, and
+// it covers undo/redo too.
+//
+// Deliberately incomplete: switching documents, and operations that never reach
+// the history stack, emit nothing here. That is a known gap in the PS
+// notification API — Step 5 adds a polling fallback. Extend that fallback
+// rather than padding this list with events that don't actually fire.
+const DOCUMENT_CHANGE_EVENTS = ["historyStateChanged"];
 
 export const listenForDocumentChanges = async (
   onChange: () => void,

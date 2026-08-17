@@ -16,7 +16,12 @@ vi.mock("../globals", () => ({
 
 const { listenForDocumentChanges } = await import("../uxp/events");
 
-const DOCUMENT_CHANGE_EVENTS = [
+const DOCUMENT_CHANGE_EVENTS = ["historyStateChanged"];
+
+// Measured in Photoshop 27.9.1 by subscribing to {event: "all"}. Neither a
+// brush stroke nor an adjustment emits `set`/`select`/`make`/`delete`/
+// `historyStep*` — subscribing to those means the pipeline never runs.
+const EVENTS_NOT_EMITTED_ON_EDIT = [
   "set",
   "select",
   "make",
@@ -31,7 +36,7 @@ describe("listenForDocumentChanges", () => {
     removeNotificationListener.mockReset().mockResolvedValue(undefined);
   });
 
-  it("subscribes to the documented set of document-change events", async () => {
+  it("subscribes to the event Photoshop emits on every document edit", async () => {
     await listenForDocumentChanges(vi.fn());
 
     expect(addNotificationListener).toHaveBeenCalledWith(
@@ -40,12 +45,21 @@ describe("listenForDocumentChanges", () => {
     );
   });
 
+  it("does not subscribe to events Photoshop never emits on an edit", async () => {
+    await listenForDocumentChanges(vi.fn());
+    const [subscribed] = addNotificationListener.mock.calls[0] as [string[]];
+
+    expect(subscribed).toEqual(
+      expect.not.arrayContaining(EVENTS_NOT_EMITTED_ON_EDIT),
+    );
+  });
+
   it("invokes the callback without processing the event descriptor", async () => {
     const onChange = vi.fn();
     await listenForDocumentChanges(onChange);
     const handler = addNotificationListener.mock.calls[0][1];
 
-    handler("set", { some: "descriptor" });
+    handler("historyStateChanged", { some: "descriptor" });
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith();

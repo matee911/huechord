@@ -72,7 +72,7 @@ graph LR
 
 ### Definition of Done
 
-- [ ] Panel logs `"Got 10000 pixels in Xms"` after every brush stroke / adjustment in PS
+- [ ] Panel logs `"Got N pixels in Xms"` after every brush stroke / adjustment in PS (N varies with document aspect ratio — `targetSize` constrains width only)
 - [ ] No pixel data leaks (dispose always called)
 - [ ] Debounce prevents excessive calls during slider drags
 - [ ] `yarn test` passes
