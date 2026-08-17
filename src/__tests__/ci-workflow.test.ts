@@ -51,7 +51,19 @@ describe("verification is defined in one place", () => {
     .map((step) => step.trim().replace(/^yarn /, ""));
 
   it("runs the full verification before a push", () => {
-    expect(packageJson["simple-git-hooks"]["pre-push"]).toBe("yarn verify");
+    expect(packageJson["simple-git-hooks"]["pre-push"]).toContain(
+      "yarn verify",
+    );
+  });
+
+  // Cheap and it can veto the push outright, so verifying first would be work
+  // thrown away.
+  it("checks the branch is still pushable before verifying anything", () => {
+    const prePush = packageJson["simple-git-hooks"]["pre-push"];
+
+    expect(prePush.indexOf("reject-push-to-merged-branch")).toBeLessThan(
+      prePush.indexOf("yarn verify"),
+    );
   });
 
   it("checks the build, not only the tests", () => {
