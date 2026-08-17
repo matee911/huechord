@@ -18,16 +18,18 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS, ARM64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The runner is not ephemeral, so the default would leave the job
 [redacted]
-          # here pushes.
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # Kept on the active LTS line rather than whatever is newest, since
+[redacted]
+          # there is not a disposable VM away from being fixed.
+          node-version: 24
           cache: yarn
 
       - name: Install root dependencies
