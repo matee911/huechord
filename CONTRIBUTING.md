@@ -175,13 +175,18 @@ Before proposing significant changes, check existing [ADRs](docs/adr/). If your 
 
 Optional fields, all dated:
 
-- **`Amended`** — the decision stands, but its wording changed (usually a clarified consequence). Use when the Decision section is untouched.
-- **`Supersedes`** — on the replacing ADR, pointing back.
+- **`Supersedes`** — on the replacing ADR, pointing back. May supersede a whole ADR or one named consequence of it.
 - **`Superseded`** — on the replaced ADR, pointing forward. Say where, not what — the replacing ADR owns the content.
 
-If the Decision itself changes, write a new ADR rather than editing the old one. Editing a Decision in place destroys the record that it ever changed, and a title naming the old choice cannot honestly be amended into the new one.
+### Past ADRs are not edited
 
-The title should name everything the Decision decides, so the two can never drift apart.
+**An accepted ADR is a record of what was decided and when. Supersede it; do not amend it.** Write a new ADR that says what is true now and names what it replaces — a whole ADR, or a single consequence of one. `Status` is the only field that changes on an existing ADR, because a record has to be able to say it is no longer current.
+
+This costs a reader one extra link and buys a history that can be trusted. An ADR edited after the fact answers "what do we think today" but can no longer answer "what did we believe when we wrote this code", which is the question you actually have when the code surprises you.
+
+So an ADR may keep a stale number in its Consequences. That is not rot — it is the state of knowledge at its date, and a later ADR carries the correction.
+
+The title should name everything the Decision decides, so the two can never drift apart, and so a later ADR can supersede exactly the part that changed.
 
 ## License
 

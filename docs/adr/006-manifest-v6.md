@@ -3,7 +3,6 @@
 **Status**: Accepted
 **Date**: 2026-08-17
 **Supersedes**: [ADR-005](005-manifest-and-api-version.md)
-**Amended**: 2026-08-17 — the Photoshop floor moved out to [ADR-007](007-photoshop-floor.md), which is a separate decision and was never named in this ADR's title
 
 ## Context
 
@@ -21,7 +20,7 @@ ADR-005 was also internally inconsistent before it met the code: manifest v5's f
 
 ## Decision
 
-Use **manifest v6** with **apiVersion 2**. The minimum Photoshop version is a separate decision — see [ADR-007](007-photoshop-floor.md).
+Use **manifest v6** with **apiVersion 2**, targeting **PS 26.0+** (Photoshop 2025).
 
 ## Rationale
 
@@ -33,12 +32,15 @@ Use **manifest v6** with **apiVersion 2**. The minimum Photoshop version is a se
 
 **Manifest v6's host requirements are undocumented.** Adobe's public UXP manifest documentation stops at v5; no source states which Photoshop version v6 requires, and `vite-uxp-plugin` types the field as a bare `number`, so nothing validates it.
 
-The practical consequence lands on the Photoshop floor, which is set independently of the manifest version: a floor below v6's real requirement ships a plugin that fails to load, with no error explaining why. That is handled in [ADR-007](007-photoshop-floor.md).
+The consequence is concrete: `host[0].minVersion` is set to `26.0.0` independently of the manifest version, and v6 has only been observed working on PS 27.9.1. **If v6 requires a host newer than 26.0, the plugin ships a floor it cannot honour** and fails to load for exactly the users this ADR claims to support. This is unverified, not disproven.
+
+Before first distribution, either verify a v6 build loads on PS 26.0, or raise `minVersion` to a version that has been tested. Until then the declared floor is an assumption.
 
 ## Consequences
 
-- The PS floor is set by `host[0].minVersion` in `uxp.config.ts`, not by the manifest version. The manifest version only bounds what is possible — see [ADR-007](007-photoshop-floor.md).
-- `executeAsModal` is required for all pixel access operations, **including read-only reads such as `imaging.getPixels`**. Photoshop rejects them outside a modal scope with "The requested functionality is only allowed from inside a modal scope", regardless of the call not mutating the document. Read-only is not an exemption. Observed in PS 27.9.1; Adobe's docs frame `executeAsModal` as being for state-modifying operations and do not document this, so it is an empirical finding rather than a documented contract, and it is not re-verified at the declared floor.
+- Users on PS 25.x or older cannot use the plugin.
+- The PS floor is set by `host[0].minVersion` in `uxp.config.ts`, not by the manifest version. The manifest version only bounds what is possible; the floor is a separate decision, currently unverified (see Risks).
+- `executeAsModal` is required for all pixel access operations, **including read-only reads such as `imaging.getPixels`**. Photoshop rejects them outside a modal scope with "The requested functionality is only allowed from inside a modal scope", regardless of the call not mutating the document. Read-only is not an exemption. Observed in PS 27.9.1; Adobe's docs frame `executeAsModal` as being for state-modifying operations and do not document this, so it is an empirical finding rather than a documented contract, and it is not re-verified at the PS 26.0 floor.
 - Must test on both Windows (Edge WebView2) and macOS (Safari WebView).
 - The manifest version, apiVersion and host floor are pinned by `src/__tests__/uxp-config.test.ts`, so changing them fails the suite and forces a revisit of this ADR rather than drifting silently.
 
