@@ -12,10 +12,7 @@ vi.mock("../uxp/imaging", () => ({
   acquirePixels: (...args: unknown[]) => acquirePixels(...args),
 }));
 vi.mock("../lib/logger", () => ({
-  logger: {
-    info: vi.fn(),
-    error: (...args: unknown[]) => loggerError(...args),
-  },
+  logger: { error: (...args: unknown[]) => loggerError(...args) },
 }));
 
 const { startPixelPipeline, DEBOUNCE_MS } =
@@ -79,6 +76,19 @@ describe("startPixelPipeline", () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it("removes the listener only once when stopped twice", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+
+    const stop = startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    stop();
+    stop();
+
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
   it("removes the listener that arrives after the pipeline was stopped", async () => {
     const { settle } = deferredSubscription();
     const unsubscribe = vi.fn().mockResolvedValue(undefined);
@@ -88,6 +98,13 @@ describe("startPixelPipeline", () => {
     settle(unsubscribe);
 
     await vi.waitFor(() => expect(unsubscribe).toHaveBeenCalledTimes(1));
+
+    // Photoshop can still deliver an event between the listener arriving and
+    // the removal landing, so the debounced call has to stay cancelled too —
+    // removing the listener alone would not keep this quiet.
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+    expect(acquirePixels).not.toHaveBeenCalled();
   });
 
   it("does not acquire pixels for a change still pending when stopped", async () => {
@@ -123,7 +140,7 @@ describe("startPixelPipeline", () => {
     expect(unhandled).not.toHaveBeenCalled();
   });
 
-  it("logs a failed unsubscribe instead of raising an unhandled rejection", async () => {
+  it("logs a failed unsubscribe", async () => {
     const unsubscribe = vi.fn().mockRejectedValue(new Error("gone"));
     listenForDocumentChanges.mockResolvedValue(unsubscribe);
 

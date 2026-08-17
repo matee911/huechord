@@ -12,16 +12,21 @@ export const DEBOUNCE_MS = 400;
  * suite runs in, instead of pulling in a DOM to mount a panel.
  */
 export const startPixelPipeline = (): (() => void) => {
-  const debouncedAcquire = debounce(() => {
-    void acquirePixels();
-  }, DEBOUNCE_MS);
-
   // Teardown can run before the subscription resolves (unmount, StrictMode's
   // double-invoke, a quick panel close/reopen). Without the flag the listener
   // registers a moment later and is never removed, so it keeps driving
   // acquisition for the rest of the session and stacks up on every restart.
   let stopped = false;
   let unsubscribe: (() => Promise<void>) | undefined;
+
+  const debouncedAcquire = debounce(() => {
+    // Cancelling on teardown only clears the timer that exists at that moment.
+    // Photoshop can still deliver an event afterwards — the listener is removed
+    // asynchronously, and a late-arriving one is removed later still — which
+    // would schedule a fresh acquisition against a document nobody is watching.
+    if (stopped) return;
+    void acquirePixels();
+  }, DEBOUNCE_MS);
 
   const unsubscribeSafely = (unsub: () => Promise<void>) => {
     unsub().catch((error) => {
@@ -45,5 +50,9 @@ export const startPixelPipeline = (): (() => void) => {
     stopped = true;
     debouncedAcquire.cancel();
     if (unsubscribe) unsubscribeSafely(unsubscribe);
+    // React never calls a cleanup twice, but this is a module-level function
+    // now rather than a closure inside an effect — a second call removing the
+    // listener again would reach Photoshop with a handler it no longer knows.
+    unsubscribe = undefined;
   };
 };
