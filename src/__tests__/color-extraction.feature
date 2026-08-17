@@ -37,6 +37,19 @@ Feature: Dominant color extraction
     And the first color is approximately 0, 255, 0
     And its weight is approximately 1.0
 
+  Scenario: A half-transparent layer over an opaque one
+    Given a buffer of 400 opaque pixels that are 128, 0, 128, the blend a half-transparent 255, 0, 0 layer makes over an opaque 0, 0, 255 one
+    When dominant colors are extracted
+    Then exactly 1 dominant color is returned
+    And the first color is approximately 128, 0, 128
+    And its weight is approximately 1.0
+
+  Scenario: A half-transparent layer over nothing
+    Given a buffer of 400 pixels split evenly between opaque 0, 255, 0 and half-transparent 255, 0, 0
+    When dominant colors are extracted
+    Then exactly 2 dominant colors are returned
+    And every weight is approximately 0.5
+
   Scenario: Nothing left to quantize
     Given a buffer of 400 pixels that are all fully transparent
     When dominant colors are extracted

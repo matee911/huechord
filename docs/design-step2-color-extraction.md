@@ -146,8 +146,23 @@ and channel values within tolerance, so nobody later "fixes" the artifact by pin
 ### 4. Fully transparent pixels are dropped before quantization
 
 RGB under a fully transparent pixel is undefined garbage in a composite. Feeding it to MMCQ pulls phantom colors
-into the palette. Pixels with `alpha === 0` are skipped. Partial transparency is kept as-is — a 50%-opacity red
-brush stroke is genuinely part of what the retoucher sees, and the composite has already blended it.
+into the palette. Pixels with `alpha === 0` are skipped.
+
+**Partial transparency is kept, and counts at full weight.** This is the layered case worth spelling out, because
+what the algorithm receives is not what the layer stack looks like in the Layers panel:
+
+| Document                                           | What `getPixels` returns                                              | What extraction reports                    |
+| -------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------ |
+| Half-transparent red layer over an opaque blue one | one opaque purple sample per pixel — the composite already blended it | one dominant color, purple                 |
+| Half-transparent red layer over nothing            | red at `alpha === 128`                                                | red, weighted like any other visible pixel |
+| Fully transparent layer over an opaque blue one    | opaque blue — the top layer contributes nothing                       | blue                                       |
+| Fully transparent layer over nothing               | `alpha === 0`, RGB undefined                                          | skipped                                    |
+
+The first row is the important one: extraction never sees the source layers, only the flattened result, so a blend
+is simply a color. The second row is the deliberate decision — a half-opacity pixel is counted once rather than
+half, because there is nothing underneath diluting it. Weighting by alpha was considered and rejected as
+speculative: no acceptance criterion asks for it, and the composite over an opaque background (the common case)
+already carries the blend in its RGB.
 
 ### 5. Achromatic hue is 0, by definition
 
@@ -272,6 +287,16 @@ Feature: Dominant color extraction
     Then the palette contains only the opaque color
     And its weight is approximately 1.0
 
+  Scenario: A half-transparent layer over an opaque one
+    Given a buffer of opaque pixels carrying the blend the composite already produced
+    When dominant colors are extracted
+    Then exactly 1 dominant color is returned, the blend
+
+  Scenario: A half-transparent layer over nothing
+    Given a buffer split evenly between an opaque color and a half-transparent one
+    When dominant colors are extracted
+    Then 2 dominant colors are returned with weights of approximately 0.5
+
   Scenario: Nothing left to quantize
     Given a pixel buffer where every pixel is fully transparent
     When dominant colors are extracted
@@ -294,6 +319,8 @@ Extraction + wiring (PR 2):
 - [ ] 10 000-pixel realistic buffer → 5-8 colors, sorted by descending weight, each with `rgb`, `hsl`, `weight`
 - [ ] Weights sum to ≈ 1.0
 - [ ] Pixels with `alpha === 0` never influence the palette
+- [ ] A composite blend from a half-transparent layer over an opaque one reports as one color, the blend
+- [ ] A half-transparent layer over nothing counts at full weight, not half
 - [ ] Fully transparent buffer → `[]`, no throw
 - [ ] Extraction of 10 000 pixels completes in <50 ms, asserted in the suite
 - [ ] `src/algorithms/` imports nothing from `src/uxp/` — tests run without any Photoshop mock

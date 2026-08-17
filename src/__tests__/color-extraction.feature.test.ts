@@ -203,6 +203,63 @@ describeFeature(feature, ({ Scenario }) => {
     },
   );
 
+  // getPixels returns the flattened composite, so layer opacity has already
+  // been resolved into the samples. These two cases pin what that leaves the
+  // algorithm looking at, which is not obvious from the buffer alone.
+  Scenario(
+    "A half-transparent layer over an opaque one",
+    ({ Given, When, Then, And }) => {
+      Given(
+        "a buffer of 400 opaque pixels that are 128, 0, 128, the blend a half-transparent 255, 0, 0 layer makes over an opaque 0, 0, 255 one",
+        () => {
+          buffer = bufferOf(uniform(400, [128, 0, 128]));
+        },
+      );
+
+      When("dominant colors are extracted", extract);
+
+      Then("exactly 1 dominant color is returned", () => {
+        expect(palette).toHaveLength(1);
+      });
+
+      And("the first color is approximately 128, 0, 128", () => {
+        expectCloseToRgb(palette[0].rgb, [128, 0, 128]);
+      });
+
+      And("its weight is approximately 1.0", () => {
+        expect(palette[0].weight).toBeCloseTo(1, 2);
+      });
+    },
+  );
+
+  Scenario(
+    "A half-transparent layer over nothing",
+    ({ Given, When, Then, And }) => {
+      Given(
+        "a buffer of 400 pixels split evenly between opaque 0, 255, 0 and half-transparent 255, 0, 0",
+        () => {
+          buffer = bufferOf([
+            ...uniform(200, [0, 255, 0]),
+            ...uniform(200, [255, 0, 0], 128),
+          ]);
+        },
+      );
+
+      When("dominant colors are extracted", extract);
+
+      Then("exactly 2 dominant colors are returned", () => {
+        expect(palette).toHaveLength(2);
+      });
+
+      // Half-transparent pixels count once, same as opaque ones: there is no
+      // second color underneath to dilute them, so what the retoucher sees is
+      // the layer's own color at reduced strength -- still that color.
+      And("every weight is approximately 0.5", () => {
+        for (const { weight } of palette) expect(weight).toBeCloseTo(0.5, 2);
+      });
+    },
+  );
+
   Scenario("Nothing left to quantize", ({ Given, When, Then }) => {
     Given("a buffer of 400 pixels that are all fully transparent", () => {
       buffer = bufferOf(uniform(400, [120, 200, 40], 0));
