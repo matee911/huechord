@@ -2,8 +2,39 @@ import { logger } from "../lib/logger";
 import { debounce } from "../lib/debounce";
 import { acquirePixels } from "./imaging";
 import { listenForDocumentChanges } from "./events";
+import { extractDominantColors } from "../algorithms/color-extraction";
+import type { DominantColor } from "../algorithms/types";
 
 export const DEBOUNCE_MS = 400;
+
+// Hue, saturation and lightness are logged rounded and the weight to three
+// places: this line is read by a human in the UDT console, and full float
+// precision makes a six-color palette unreadable.
+const formatPalette = (palette: DominantColor[]): string =>
+  JSON.stringify(
+    palette.map(({ rgb, hsl, weight }) => ({
+      ...rgb,
+      h: Math.round(hsl.h),
+      s: Math.round(hsl.s),
+      l: Math.round(hsl.l),
+      weight: Number(weight.toFixed(3)),
+    })),
+  );
+
+const analyzeDocument = async (): Promise<void> => {
+  const acquired = await acquirePixels();
+  // Undefined when there is no open document, or when an acquisition is
+  // already in flight. Both are ordinary, and imaging.ts has already logged.
+  if (!acquired) return;
+
+  const start = Date.now();
+  const palette = extractDominantColors(acquired.data, acquired.channels);
+  const durationMs = Date.now() - start;
+
+  logger.info(
+    `Extracted ${palette.length} colors in ${durationMs}ms: ${formatPalette(palette)}`,
+  );
+};
 
 /**
  * Wires document changes to debounced pixel acquisition and hands back the
@@ -25,7 +56,11 @@ export const startPixelPipeline = (): (() => void) => {
     // asynchronously, and a late-arriving one is removed later still — which
     // would schedule a fresh acquisition against a document nobody is watching.
     if (stopped) return;
-    void acquirePixels();
+    // Quantization is third-party code running on host-supplied bytes; a throw
+    // there would surface as an unhandled rejection with no panel-side trace.
+    analyzeDocument().catch((error) => {
+      logger.error("Failed to analyze the document", error as Error);
+    });
   }, DEBOUNCE_MS);
 
   const unsubscribeSafely = (unsub: () => Promise<void>) => {

@@ -31,13 +31,26 @@ type FakeImageData = {
   width: number;
   height: number;
   dispose: () => void;
+  components?: number;
+  getData?: () => Promise<Uint8Array>;
 };
 
-const hostReturns = (imageData: FakeImageData) =>
-  getPixelsMock.mockImplementation(async () => {
+// Every case here cares about the wrapper's control flow, not the samples, so
+// the buffer defaults to something valid rather than being spelled out.
+const withDefaults = (imageData: FakeImageData): FakeImageData => ({
+  components: 4,
+  getData: async () => new Uint8Array(imageData.width * imageData.height * 4),
+  ...imageData,
+});
+
+const hostReturns = (fake: FakeImageData) => {
+  const imageData = withDefaults(fake);
+
+  return getPixelsMock.mockImplementation(async () => {
     if (modalDepth === 0) throw new Error(MODAL_SCOPE_ERROR);
     return { imageData };
   });
+};
 
 describe("acquirePixels", () => {
   beforeEach(() => {
@@ -83,7 +96,32 @@ describe("acquirePixels", () => {
     expect(result).toEqual({
       pixelCount: 7500,
       durationMs: expect.any(Number),
+      data: expect.any(Uint8Array),
+      channels: 4,
     });
+  });
+
+  // The samples are what the caller actually came for; returning only the count
+  // is how this wrapper behaved before extraction existed.
+  it("reads the samples inside the modal scope and hands them back", async () => {
+    const samples = Uint8Array.from([10, 20, 30, 255, 40, 50, 60, 255]);
+    let modalDepthAtRead = -1;
+    hostReturns({
+      width: 2,
+      height: 1,
+      components: 4,
+      getData: async () => {
+        modalDepthAtRead = modalDepth;
+        return samples;
+      },
+      dispose: vi.fn(),
+    });
+
+    const result = await acquirePixels();
+
+    expect(modalDepthAtRead).toBe(1);
+    expect(result?.data).toBe(samples);
+    expect(result?.channels).toBe(4);
   });
 
   it("disposes the image data once, after the modal scope has closed", async () => {
@@ -127,11 +165,14 @@ describe("acquirePixels", () => {
     const first = await acquirePixels();
     const second = await acquirePixels();
 
-    expect(first).toEqual({ pixelCount: 7500, durationMs: expect.any(Number) });
-    expect(second).toEqual({
+    const acquired = {
       pixelCount: 7500,
       durationMs: expect.any(Number),
-    });
+      data: expect.any(Uint8Array),
+      channels: 4,
+    };
+    expect(first).toEqual(acquired);
+    expect(second).toEqual(acquired);
     expect(loggerMock.error).toHaveBeenCalledWith(
       "Failed to dispose pixel data",
       expect.any(Error),
@@ -176,7 +217,9 @@ describe("acquirePixels", () => {
     expect(second).toBeUndefined();
     expect(getPixelsMock).toHaveBeenCalledTimes(1);
 
-    resolveFirst({ imageData: { width: 10, height: 10, dispose: vi.fn() } });
+    resolveFirst({
+      imageData: withDefaults({ width: 10, height: 10, dispose: vi.fn() }),
+    });
     await first;
   });
 });

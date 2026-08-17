@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const listenForDocumentChanges = vi.fn();
 const acquirePixels = vi.fn();
 const loggerError = vi.fn();
+const loggerInfo = vi.fn();
 
 vi.mock("../uxp/events", () => ({
   listenForDocumentChanges: (...args: unknown[]) =>
@@ -12,7 +13,10 @@ vi.mock("../uxp/imaging", () => ({
   acquirePixels: (...args: unknown[]) => acquirePixels(...args),
 }));
 vi.mock("../lib/logger", () => ({
-  logger: { error: (...args: unknown[]) => loggerError(...args) },
+  logger: {
+    error: (...args: unknown[]) => loggerError(...args),
+    info: (...args: unknown[]) => loggerInfo(...args),
+  },
 }));
 
 const { startPixelPipeline, DEBOUNCE_MS } =
@@ -43,7 +47,19 @@ describe("startPixelPipeline", () => {
     listenForDocumentChanges.mockReset();
     acquirePixels.mockReset().mockResolvedValue(undefined);
     loggerError.mockReset();
+    loggerInfo.mockReset();
   });
+
+  // Real extraction runs here rather than a mock: the point of the assertion is
+  // that the two halves fit together, not that the pipeline calls a function.
+  const acquisitionYields = (pixels: number[][]) => {
+    acquirePixels.mockResolvedValue({
+      pixelCount: pixels.length,
+      durationMs: 1,
+      data: Uint8Array.from(pixels.flat()),
+      channels: 4,
+    });
+  };
 
   afterEach(() => {
     vi.useRealTimers();
@@ -62,6 +78,61 @@ describe("startPixelPipeline", () => {
 
     vi.advanceTimersByTime(DEBOUNCE_MS);
     expect(acquirePixels).toHaveBeenCalledTimes(1);
+  });
+
+  // Asserts the message itself: the Definition of Done for this step is that a
+  // retoucher sees the palette in the console, which a silently-correct return
+  // value would not deliver.
+  it("logs the extracted palette after a document change", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+    acquisitionYields([
+      ...Array.from({ length: 30 }, () => [255, 0, 0, 255]),
+      ...Array.from({ length: 10 }, () => [0, 0, 255, 255]),
+    ]);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+
+    await vi.waitFor(() => expect(loggerInfo).toHaveBeenCalledTimes(1));
+    const [message] = loggerInfo.mock.calls[0] as [string];
+    expect(message).toMatch(/^Extracted 2 colors in \d+ms: /);
+
+    // Channel values are the quantizer's cluster averages and land a few units
+    // off the input, so asserting them exactly would pin down an artifact.
+    // Hue and weight are what the line has to get right.
+    const logged = JSON.parse(message.slice(message.indexOf(": ") + 2));
+    expect(logged).toEqual([
+      expect.objectContaining({ h: 0, weight: 0.75 }),
+      expect.objectContaining({ h: 240, weight: 0.25 }),
+    ]);
+    expect(logged[0]).toEqual({
+      r: expect.any(Number),
+      g: expect.any(Number),
+      b: expect.any(Number),
+      h: expect.any(Number),
+      s: expect.any(Number),
+      l: expect.any(Number),
+      weight: expect.any(Number),
+    });
+  });
+
+  it("reports a failed analysis instead of raising an unhandled rejection", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+    acquirePixels.mockRejectedValue(new Error("host went away"));
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+
+    await vi.waitFor(() => expect(loggerError).toHaveBeenCalledTimes(1));
+    expect(loggerError.mock.calls[0][0]).toContain("Failed to analyze");
   });
 
   it("removes the listener when stopped after the subscription resolved", async () => {

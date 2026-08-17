@@ -4,6 +4,10 @@ import { logger } from "../lib/logger";
 export interface PixelAcquisitionResult {
   pixelCount: number;
   durationMs: number;
+  /** Interleaved samples, one byte per component. */
+  data: Uint8Array;
+  /** Components per pixel — 3 for RGB, 4 for RGBA. */
+  channels: number;
 }
 
 let acquisitionInFlight = false;
@@ -28,7 +32,7 @@ export const acquirePixels = async (): Promise<
   let dispose: (() => Promise<void>) | undefined;
 
   try {
-    const imageData = await photoshop.core.executeAsModal(
+    const acquired = await photoshop.core.executeAsModal(
       async () => {
         const { imageData } = await photoshop.imaging.getPixels({
           targetSize: { width: 100 },
@@ -39,17 +43,34 @@ export const acquirePixels = async (): Promise<
         });
 
         dispose = () => imageData.dispose();
-        return imageData;
+
+        return {
+          width: imageData.width,
+          height: imageData.height,
+          channels: imageData.components,
+          // Reading the samples is part of acquisition, so it belongs inside
+          // the scope: the handle is only guaranteed valid until disposal, and
+          // disposal is what closes this out.
+          //
+          // The union in the declared return type covers 16- and 32-bit
+          // sources; componentSize: 8 above is what narrows it to bytes here.
+          data: (await imageData.getData({})) as Uint8Array,
+        };
       },
       { commandName: "Acquire pixels for color harmony analysis" },
     );
 
     // Height follows the document's aspect ratio — targetSize constrains
     // width only, so this is not a fixed number.
-    const pixelCount = imageData.width * imageData.height;
+    const pixelCount = acquired.width * acquired.height;
     const durationMs = Date.now() - start;
     logger.info(`Got ${pixelCount} pixels in ${durationMs}ms`);
-    return { pixelCount, durationMs };
+    return {
+      pixelCount,
+      durationMs,
+      data: acquired.data,
+      channels: acquired.channels,
+    };
   } catch (error) {
     // No open document, document closed mid-acquisition, etc. — log and
     // return quietly rather than crashing the pipeline.
