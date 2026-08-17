@@ -12,6 +12,7 @@
     "hmr": "vite",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "verify": "yarn lint && yarn format:check && yarn typecheck && yarn test && yarn build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -35,6 +36,7 @@
     "@types/react-dom": "^19.1.6",
     "@types/ws": "^8.5.8",
     "@vitejs/plugin-react": "^4.5.1",
+    "@vitest/coverage-v8": "4.0.18",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
     "eslint": "^9.18.0",
@@ -64,7 +66,7 @@
     ]
   },
   "simple-git-hooks": {
-    "pre-commit": "npx lint-staged",
+    "pre-commit": "npx lint-staged && yarn test:coverage",
     "pre-push": "sh scripts/reject-push-to-merged-branch.sh && yarn verify"
   }
 }

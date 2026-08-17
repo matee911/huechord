@@ -187,6 +187,7 @@ The clean answer remains a GitHub-hosted runner; it is blocked on billing rather
 - **Minimal modal scope** — `executeAsModal` blocks must be as short as possible
 - **Dispose pixel data** — Always call `.dispose()` on `PhotoshopImageData` when done
 - **Type everything** — No `any` types unless absolutely unavoidable
+- **Coverage is gated on commit** — `pre-commit` runs `yarn test:coverage`, which fails below the thresholds in `vitest.config.ts`. Scope is `src/algorithms/`, `src/lib/` and `src/uxp/`; React entrypoints, WebView glue and type-only modules are excluded on purpose. When the real figure rises, raise the thresholds — never lower them to get a commit through.
 
 ## Debugging
 
