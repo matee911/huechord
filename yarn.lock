@@ -1093,6 +1093,11 @@
   dependencies:
     prettier "*"
 
+"@types/quantize@^1.0.2":
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/@types/quantize/-/quantize-1.0.2.tgz#e0f09943ec0f1899443bd39cec55aa19ebda3f6e"
+  integrity sha512-dABtiRbR6TY6ViDvzPj9etP49GRBNGr8tFF2E08a4wgF6l+UdVjuNGemZj7kOcdbO8Mz3ER+LONw2Z7stsN5Kg==
+
 "@types/react-dom@^19.1.6":
   version "19.1.6"
   resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-19.1.6.tgz#4af629da0e9f9c0f506fc4d1caa610399c595d64"
@@ -3653,6 +3658,11 @@ punycode@^2.1.0:
   version "2.3.1"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-2.3.1.tgz#027422e2faec0b25e1549c3e1bd8309b9133b6e5"
   integrity sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==
+
+quantize@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/quantize/-/quantize-1.0.2.tgz#d25ac200a77b6d70f40127ca171a10e33c8546de"
+  integrity sha512-25P7wI2UoDbIQsQp50ARkt+5pwPsOq7G/BqvT5xAbapnRoNWMN8/p55H9TXd5MuENiJnm5XICB2H2aDZGwts7w==
 
 queue-microtask@^1.2.2:
   version "1.2.3"

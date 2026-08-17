@@ -34,8 +34,8 @@ Explicitly **out of scope** for this step, per the tech lead review on issue #4 
 | `src/uxp/imaging.ts` **(modified)**            | Photoshop pixel acquisition — now also hands back the buffer                 | Photoshop API                              |
 | `src/uxp/pixel-pipeline.ts` **(modified)**     | Orchestration: event → debounce → acquire → extract → log                    | both sides                                 |
 
-The boundary that matters: **`src/algorithms/` never imports from `src/uxp/`**. Extraction takes a plain
-`Uint8ClampedArray` plus a channel count, not a `PhotoshopImageData`. That keeps the whole domain testable in Node,
+The boundary that matters: **`src/algorithms/` never imports from `src/uxp/`**. Extraction takes a plain byte array
+plus a channel count, not a `PhotoshopImageData`. That keeps the whole domain testable in Node,
 which is the point of CLAUDE.md's "keep algorithms pure and side-effect free".
 
 `color-convert` is a separate module from `color-extraction` rather than a private helper because Step 3 (wheel
@@ -64,7 +64,7 @@ interface PixelAcquisitionResult {
 interface PixelAcquisitionResult {
   pixelCount: number;
   durationMs: number;
-  data: Uint8ClampedArray; // was: absent → is: RGBA/RGB interleaved samples
+  data: Uint8Array; // was: absent → is: RGBA/RGB interleaved samples
   channels: number; // was: absent → is: 3 or 4, from imageData.components
 }
 ```
@@ -136,13 +136,20 @@ Photoshop (see "How to test manually" in the PR).
 branch, not defensive coding for an impossible state: a fully transparent selection filters down to zero pixels.
 Handled by returning `[]`.
 
-### 3. Fully transparent pixels are dropped before quantization
+### 3. Reported colors are cluster averages, not source pixels
+
+MMCQ bins colors at 5 bits per channel and reports each cluster's average, so a buffer of pure `(255, 0, 0)` comes
+back as roughly `(252, 4, 4)`. That is the algorithm working as designed, not a rounding bug — the palette answers
+"what color is this region", not "which exact pixel value appears most often". Tests assert hue and weight exactly
+and channel values within tolerance, so nobody later "fixes" the artifact by pinning it down.
+
+### 4. Fully transparent pixels are dropped before quantization
 
 RGB under a fully transparent pixel is undefined garbage in a composite. Feeding it to MMCQ pulls phantom colors
 into the palette. Pixels with `alpha === 0` are skipped. Partial transparency is kept as-is — a 50%-opacity red
 brush stroke is genuinely part of what the retoucher sees, and the composite has already blended it.
 
-### 4. Achromatic hue is 0, by definition
+### 5. Achromatic hue is 0, by definition
 
 For `S === 0` (black, white, any gray) hue is mathematically undefined. Left implicit it becomes `NaN` and poisons
 Step 4's harmony scoring silently. `rgbToHsl` returns `h: 0` and the tests assert that value explicitly.
