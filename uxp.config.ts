@@ -81,7 +81,6 @@ const manifest: UXP_Manifest = {
       domains: [],
       enableMessageBridge: "localAndRemote",
     },
-    allowCodeGenerationFromStrings: true,
   },
   icons: [
     {

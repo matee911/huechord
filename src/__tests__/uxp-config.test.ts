@@ -47,4 +47,13 @@ describe("uxp.config", () => {
       expect(manifest.requiredPermissions?.network).toBeUndefined();
     },
   );
+
+  // Nothing in either bundle generates code from a string, and the WebView
+  // bridge is enabled by the webview permissions alone. Granting this anyway
+  // is what would turn any other reachable input into an execution concern.
+  it("does not ask to generate code from strings", () => {
+    expect(
+      config.manifest.requiredPermissions?.allowCodeGenerationFromStrings,
+    ).toBeUndefined();
+  });
 });
