@@ -93,7 +93,7 @@ sequenceDiagram
     rect rgb(191, 224, 255)
     Note right of Img: ZMIANA: getData() wewnątrz modal scope,<br/>bufor wraca do wywołującego zamiast być odrzucony
     Img->>PS: executeAsModal(getPixels + getData)
-    PS-->>Img: PhotoshopImageData + Uint8ClampedArray
+    PS-->>Img: PhotoshopImageData + Uint8Array
     Img->>PS: imageData.dispose()
     Img-->>Pipe: {pixelCount, durationMs, data, channels}
     end
@@ -129,8 +129,8 @@ criteria exactly true rather than approximately true.
 
 The tech lead flagged this as a possible blocker. Static answer: `quantize@1.0.2` is 490 lines, zero dependencies,
 and references no `Buffer`, `process`, `require`, `window` or `global` — its only host coupling is
-`module.exports`, which Vite resolves at build time. Runtime answer: verified by loading the built plugin in
-Photoshop (see "How to test manually" in the PR).
+`module.exports`, which Vite resolves at build time. Runtime answer: **still open** — loading the built plugin in
+Photoshop is the remaining check, and the steps for it are in the PR's "How to test manually".
 
 `quantize` returns `false` — not an empty palette — when `pixels.length === 0` or `maxColors < 2`. That is a real
 branch, not defensive coding for an impossible state: a fully transparent selection filters down to zero pixels.
