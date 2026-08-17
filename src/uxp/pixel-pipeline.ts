@@ -48,6 +48,9 @@ export const startPixelPipeline = (): (() => void) => {
 
   return () => {
     stopped = true;
+    // Housekeeping, not correctness: the flag above already stops a pending
+    // call from acquiring. This releases the timer instead of letting it fire
+    // into a no-op up to a debounce interval after the panel is gone.
     debouncedAcquire.cancel();
     if (unsubscribe) unsubscribeSafely(unsubscribe);
     // React never calls a cleanup twice, but this is a module-level function

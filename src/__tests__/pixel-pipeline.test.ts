@@ -126,18 +126,23 @@ describe("startPixelPipeline", () => {
     const unhandled = vi.fn();
     process.on("unhandledRejection", unhandled);
 
-    startPixelPipeline();
-    fail(new Error("no host"));
+    try {
+      startPixelPipeline();
+      fail(new Error("no host"));
 
-    await vi.waitFor(() => expect(loggerError).toHaveBeenCalledTimes(1));
-    expect(loggerError.mock.calls[0][0]).toContain("Failed to subscribe");
+      await vi.waitFor(() => expect(loggerError).toHaveBeenCalledTimes(1));
+      expect(loggerError.mock.calls[0][0]).toContain("Failed to subscribe");
 
-    // Rejections are reported a macrotask after they settle, so let the real
-    // event loop turn before asserting nothing was reported.
-    vi.useRealTimers();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    process.off("unhandledRejection", unhandled);
-    expect(unhandled).not.toHaveBeenCalled();
+      // Rejections are reported a macrotask after they settle, so let the real
+      // event loop turn before asserting nothing was reported.
+      vi.useRealTimers();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      // A failing assertion above would otherwise leave this listener attached
+      // for the rest of the process, where it silently watches every later test.
+      process.off("unhandledRejection", unhandled);
+    }
   });
 
   it("logs a failed unsubscribe", async () => {
