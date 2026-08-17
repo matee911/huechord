@@ -23,7 +23,7 @@ const manifest: UXP_Manifest = {
   host: [
     {
       app: "PS",
-      minVersion: "26.0.0",
+      minVersion: "27.0.0",
       data: {
         apiVersion: 2,
       },

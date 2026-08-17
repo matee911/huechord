@@ -11,7 +11,7 @@ Real-time color harmony analysis plugin for Adobe Photoshop. Extracts dominant c
 - **Language**: TypeScript
 - **Framework**: React (via Bolt UXP)
 - **Bundler**: Vite
-- **Target**: Photoshop 26.0+ (2025+)
+- **Target**: Photoshop 27.0+ (2026+)
 
 ## Architecture
 

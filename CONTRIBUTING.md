@@ -8,7 +8,7 @@ Thanks for your interest in contributing to Color Harmony Wheel.
 | ---------------------- | ------------ | ------------------------------------------------------- |
 | **Node.js**            | 18+          | [nodejs.org](https://nodejs.org/)                       |
 | **Yarn**               | 1.22+        | `npm i -g yarn`                                         |
-| **Adobe Photoshop**    | 26.0+ (2025) | Creative Cloud Desktop                                  |
+| **Adobe Photoshop**    | 27.0+ (2026) | Creative Cloud Desktop                                  |
 | **UXP Developer Tool** | 2.0+         | Creative Cloud Desktop > All Apps > UXP Developer Tools |
 
 ## First-Time Setup

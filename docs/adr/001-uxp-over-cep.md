@@ -25,8 +25,8 @@ Use **UXP** (Unified Extensibility Platform) as the plugin platform.
 - Must work within UXP's limited HTML/CSS subset (mitigated by WebView — see [ADR-002](002-webview-for-ui.md))
 - Requires `executeAsModal` for pixel access (apiVersion 2), including read-only
   reads — see [ADR-006](006-manifest-v6.md)
-- Plugin requires PS 26.0+ minimum, set by `host[0].minVersion` in
-  `uxp.config.ts` — see [ADR-006](006-manifest-v6.md). This line previously said
-  23.3.0, which matches manifest v5's floor exactly; nothing in this ADR
+- Plugin requires PS 27.0+ minimum, set by `host[0].minVersion` in
+  `uxp.config.ts` — see [ADR-007](007-photoshop-floor.md). This line previously
+  said 23.3.0, which matches manifest v5's floor exactly; nothing in this ADR
   explains the number, so it appears to have been copied from there rather than
   decided here.
