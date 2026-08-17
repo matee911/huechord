@@ -35,12 +35,24 @@ export const App = () => {
       void acquirePixels();
     }, 400);
 
+    // Cleanup can run before the subscription resolves (unmount, StrictMode's
+    // double-invoke, a quick panel close/reopen). Without the flag the listener
+    // registers a moment later and is never removed, so it keeps driving
+    // acquisition for the rest of the session and stacks up on every remount.
+    let cancelled = false;
     let unsubscribe: (() => Promise<void>) | undefined;
-    listenForDocumentChanges(debouncedAcquire).then((unsub) => {
-      unsubscribe = unsub;
-    });
+
+    listenForDocumentChanges(debouncedAcquire)
+      .then((unsub) => {
+        if (cancelled) void unsub();
+        else unsubscribe = unsub;
+      })
+      .catch((error) => {
+        logger.error("Failed to subscribe to document changes", error as Error);
+      });
 
     return () => {
+      cancelled = true;
       debouncedAcquire.cancel();
       void unsubscribe?.();
     };

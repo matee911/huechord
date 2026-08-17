@@ -8,8 +8,8 @@ import { photoshop } from "../globals";
 //
 // Deliberately incomplete: switching documents, and operations that never reach
 // the history stack, emit nothing here. That is a known gap in the PS
-// notification API — Step 5 adds a polling fallback. Extend that fallback
-// rather than padding this list with events that don't actually fire.
+// notification API and the reason a polling fallback is planned. Extend that
+// fallback rather than padding this list with events that don't actually fire.
 const DOCUMENT_CHANGE_EVENTS = ["historyStateChanged"];
 
 export const listenForDocumentChanges = async (

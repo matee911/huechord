@@ -7,8 +7,8 @@ export default defineConfig({
     // Tests that assert error paths log real errors; printing them on a green
     // run makes a passing suite look broken. Failing tests still print in full.
     silent: "passed-only",
-    // Keeps mock state from bleeding between tests — a swapped logger or spy
-    // must not survive into the next one.
-    restoreMocks: true,
+    // Clears recorded calls between tests so one test cannot see another's.
+    // Note restoreMocks does NOT do this for plain vi.fn() — only for spies.
+    clearMocks: true,
   },
 });

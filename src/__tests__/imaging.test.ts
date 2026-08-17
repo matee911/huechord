@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Verbatim from Photoshop 27.9.1 when getPixels is called outside a modal
-// scope. The mock reproduces the host's refusal so this suite fails if the
-// modal wrapper is ever dropped again.
+// Verbatim from the host when getPixels is called outside a modal scope. The
+// mock reproduces that refusal so this suite fails if the wrapper is ever
+// dropped again.
 const MODAL_SCOPE_ERROR =
   "The requested functionality is only allowed from inside a modal scope.";
 
 const getPixelsMock = vi.fn();
 const executeAsModalMock = vi.fn();
-const loggerMock = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+const loggerMock = { info: vi.fn(), error: vi.fn() };
 
 let modalDepth = 0;
 
@@ -44,7 +44,6 @@ describe("acquirePixels", () => {
     modalDepth = 0;
     getPixelsMock.mockReset();
     loggerMock.info.mockReset();
-    loggerMock.warn.mockReset();
     loggerMock.error.mockReset();
     executeAsModalMock
       .mockReset()
@@ -87,34 +86,35 @@ describe("acquirePixels", () => {
     });
   });
 
-  it("keeps the modal scope to acquisition only", async () => {
+  it("disposes the image data once, after the modal scope has closed", async () => {
+    let modalDepthAtDispose = -1;
     const dispose = vi.fn(() => {
-      expect(modalDepth).toBe(0);
+      modalDepthAtDispose = modalDepth;
     });
     hostReturns({ width: 100, height: 75, dispose });
 
     await acquirePixels();
 
     expect(dispose).toHaveBeenCalledTimes(1);
+    expect(modalDepthAtDispose).toBe(0);
   });
 
-  it("disposes the image data and returns the pixel count and timing", async () => {
+  it("still disposes when the code after acquisition throws", async () => {
     const dispose = vi.fn();
     hostReturns({ width: 100, height: 75, dispose });
+    loggerMock.info.mockImplementation(() => {
+      throw new Error("logger blew up");
+    });
 
     const result = await acquirePixels();
 
     expect(dispose).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({
-      pixelCount: 7500,
-      durationMs: expect.any(Number),
-    });
+    expect(result).toBeUndefined();
   });
 
-  // The Definition of Done is about what the panel logs, so assert the message
-  // itself — asserting only the return value lets a reworded or deleted log
-  // slip through green.
-  it("logs the pixel count and duration in the format the DoD requires", async () => {
+  // Asserts the message itself, not just the returned object — a reworded or
+  // deleted log would otherwise slip through green while the panel went silent.
+  it("logs the pixel count and duration", async () => {
     hostReturns({ width: 100, height: 75, dispose: vi.fn() });
 
     await acquirePixels();

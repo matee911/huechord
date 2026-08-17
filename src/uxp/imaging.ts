@@ -1,6 +1,12 @@
 import { photoshop } from "../globals";
 import { logger } from "../lib/logger";
 
+// Derived from the API rather than imported, so it tracks @types/photoshop
+// without depending on that package's internal module layout.
+type PhotoshopImageData = Awaited<
+  ReturnType<typeof photoshop.imaging.getPixels>
+>["imageData"];
+
 export interface PixelAcquisitionResult {
   pixelCount: number;
   durationMs: number;
@@ -23,8 +29,13 @@ export const acquirePixels = async (): Promise<
   acquisitionInFlight = true;
   const start = Date.now();
 
+  // Captured by assignment inside the scope rather than through the resolved
+  // value, so the handle is reachable for disposal even if executeAsModal
+  // rejects during teardown, after getPixels already allocated it.
+  let acquired: PhotoshopImageData | undefined;
+
   try {
-    const imageData = await photoshop.core.executeAsModal(
+    await photoshop.core.executeAsModal(
       async () => {
         const { imageData } = await photoshop.imaging.getPixels({
           targetSize: { width: 100 },
@@ -34,27 +45,26 @@ export const acquirePixels = async (): Promise<
           componentSize: 8,
         });
 
-        return imageData;
+        acquired = imageData;
       },
       { commandName: "Acquire pixels for color harmony analysis" },
     );
 
-    try {
-      // Height follows the document's aspect ratio — targetSize constrains
-      // width only, so this is not a fixed number.
-      const pixelCount = imageData.width * imageData.height;
-      const durationMs = Date.now() - start;
-      logger.info(`Got ${pixelCount} pixels in ${durationMs}ms`);
-      return { pixelCount, durationMs };
-    } finally {
-      await imageData.dispose();
-    }
+    if (!acquired) return undefined;
+
+    // Height follows the document's aspect ratio — targetSize constrains
+    // width only, so this is not a fixed number.
+    const pixelCount = acquired.width * acquired.height;
+    const durationMs = Date.now() - start;
+    logger.info(`Got ${pixelCount} pixels in ${durationMs}ms`);
+    return { pixelCount, durationMs };
   } catch (error) {
     // No open document, document closed mid-acquisition, etc. — log and
     // return quietly rather than crashing the pipeline.
     logger.error("Pixel acquisition failed", error as Error);
     return undefined;
   } finally {
+    await acquired?.dispose();
     acquisitionInFlight = false;
   }
 };

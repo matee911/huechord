@@ -36,7 +36,11 @@ describe("listenForDocumentChanges", () => {
     removeNotificationListener.mockReset().mockResolvedValue(undefined);
   });
 
-  it("subscribes to the event Photoshop emits on every document edit", async () => {
+  // This asserts the subscription matches the manually verified constant; it
+  // cannot prove Photoshop really emits it. Only a live host can — see the
+  // measurement recorded in events.ts. Keep that verification in the loop when
+  // this list changes.
+  it("subscribes to the manually verified document-change event", async () => {
     await listenForDocumentChanges(vi.fn());
 
     expect(addNotificationListener).toHaveBeenCalledWith(
