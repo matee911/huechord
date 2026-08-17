@@ -40,8 +40,19 @@ export const extractDominantColors = (
   // landed in each cluster, so attribute them here. A second pass also drops
   // clusters that ended up empty, which is what keeps a two-color image from
   // reporting a third, unpopulated color.
+  //
+  // nearest() rather than the more obvious map(): map() first asks each box
+  // whether it contains the pixel, and that containment check assigns two
+  // undeclared variables. Under a script that is sloppy mode creating globals;
+  // bundled as a module it is strict mode throwing ReferenceError, which is
+  // what Photoshop actually runs. Unit tests cannot see it either, because the
+  // library resolves as CommonJS there and CommonJS is not strict.
+  //
+  // Nothing is lost by skipping the containment step: map() falls through to
+  // exactly this call whenever no box contains the pixel, and "closest palette
+  // color in RGB" is the attribution this function wants anyway.
   for (const pixel of pixels) {
-    const [r, g, b] = colorMap.map(pixel);
+    const [r, g, b] = colorMap.nearest(pixel);
     const key = `${r},${g},${b}`;
     const population = populations.get(key);
 
