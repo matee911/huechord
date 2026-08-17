@@ -3,8 +3,7 @@
 **Status**: Superseded by [ADR-006](006-manifest-v6.md)
 **Date**: 2025-02-25
 **Amended**: 2026-08-17 — Consequences clarified (read-only pixel reads)
-**Superseded**: 2026-08-17 — the code ships manifest v6; the apiVersion 2 and
-PS 26.0+ parts of this decision carry over unchanged
+**Superseded**: 2026-08-17 — see [ADR-006](006-manifest-v6.md)
 
 ## Context
 

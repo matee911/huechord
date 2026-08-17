@@ -31,7 +31,7 @@ graph LR
 ### Scope
 
 - `yarn create bolt-uxp` (React + TypeScript)
-- Configure `uxp.config.ts`: manifest v5, apiVersion 2, WebView permissions, PS 26.0+ target
+- Configure `uxp.config.ts`: manifest v6, apiVersion 2, WebView permissions, PS 26.0+ target
 - Empty panel loads in Photoshop
 - WebView renders "Hello" text received via `postMessage` from UXP context
 - Setup **Vitest** with first smoke test

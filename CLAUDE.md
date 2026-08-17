@@ -6,7 +6,7 @@ Real-time color harmony analysis plugin for Adobe Photoshop. Extracts dominant c
 
 ## Tech Stack
 
-- **Platform**: Adobe UXP (manifest v5, apiVersion 2)
+- **Platform**: Adobe UXP (manifest v6, apiVersion 2)
 - **UI**: WebView panel (HTML5 Canvas/SVG)
 - **Language**: TypeScript
 - **Framework**: React (via Bolt UXP)

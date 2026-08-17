@@ -13,7 +13,7 @@ colors/
 │   ├── analysis-*.md             # Research & analysis documents
 │   └── project-structure.md      # This file
 ├── plugin/
-│   ├── manifest.json             # UXP manifest v5 (source of truth)
+│   ├── manifest.json             # Generated UXP manifest (source: uxp.config.ts)
 │   ├── icons/                    # Plugin icons (23x23, 48x48 PNG)
 │   └── index.html                # UXP entrypoint (loads bundle)
 ├── src/

@@ -1,4 +1,6 @@
-import { UXP_Manifest, UXP_Config } from "vite-uxp-plugin";
+// Type-only: this module is imported by a Node-environment test, and a value
+// import would pull the Vite build plugin into that graph.
+import type { UXP_Manifest, UXP_Config } from "vite-uxp-plugin";
 import { version } from "./package.json";
 
 const extraPrefs = {

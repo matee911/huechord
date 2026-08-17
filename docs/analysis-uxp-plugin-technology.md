@@ -54,7 +54,7 @@ There is no manifest v6. New features are gated via **feature flags** (e.g., `en
 - SVG: limited to simple icons, complex SVGs render incorrectly
 - No WebGL
 
-### WebView Panel (manifest v5 required)
+### WebView Panel (manifest v5 or later)
 
 - Full browser engine (Edge on Windows, Safari on macOS)
 - Full HTML5 Canvas, SVG, CSS animations, WebGL
@@ -92,4 +92,4 @@ graph TD
 
 ## Conclusion
 
-UXP with manifest v5, apiVersion 2, and WebView for complex UI is the only viable modern approach. CEP and ExtendScript are dead ends. See [ADR-001](adr/001-uxp-over-cep.md), [ADR-002](adr/002-webview-for-ui.md), [ADR-005](adr/005-manifest-and-api-version.md).
+UXP with apiVersion 2 and WebView for complex UI is the only viable modern approach. CEP and ExtendScript are dead ends. The project ships manifest v6 — see [ADR-001](adr/001-uxp-over-cep.md), [ADR-002](adr/002-webview-for-ui.md), [ADR-006](adr/006-manifest-v6.md).

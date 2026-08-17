@@ -161,6 +161,28 @@ Before proposing significant changes, check existing [ADRs](docs/adr/). If your 
 ## Consequences
 ```
 
+### Header fields
+
+`Status` is one of:
+
+| Value                   | Meaning                                      |
+| ----------------------- | -------------------------------------------- |
+| `Proposed`              | Under discussion, not yet binding            |
+| `Accepted`              | Binding — the code is expected to match it   |
+| `Rejected`              | Considered and declined; kept for the record |
+| `Deprecated`            | No longer applies, with nothing replacing it |
+| `Superseded by ADR-NNN` | A later decision replaced it                 |
+
+Optional fields, all dated:
+
+- **`Amended`** — the decision stands, but its wording changed (usually a clarified consequence). Use when the Decision section is untouched.
+- **`Supersedes`** — on the replacing ADR, pointing back.
+- **`Superseded`** — on the replaced ADR, pointing forward. Say where, not what — the replacing ADR owns the content.
+
+If the Decision itself changes, write a new ADR rather than editing the old one. Editing a Decision in place destroys the record that it ever changed, and a title naming the old choice cannot honestly be amended into the new one.
+
+The title should name everything the Decision decides, so the two can never drift apart.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the same license as the project.
