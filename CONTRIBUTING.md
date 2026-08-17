@@ -107,6 +107,42 @@ docs: update algorithm analysis with octree option
 4. Keep PRs focused — one feature or fix per PR
 5. Update relevant docs/ADRs if architecture changes
 
+## CI
+
+[redacted]
+
+[redacted]
+
+### Running it
+
+|                       |                                                           |
+| --------------------- | --------------------------------------------------------- |
+[redacted]
+[redacted]
+| Status / start / stop | `[redacted] \| start \| stop` |
+| Logs                  | `~/Library/Logs/actions.runner.<repo>.<runner-name>`      |
+
+It starts on login and runs in the background.
+
+### When CI appears stuck
+
+**An offline runner does not fail jobs — it queues them, indefinitely.** A workflow that never starts looks identical to one that is merely slow, and nothing on GitHub says why. Before investigating a change as the cause, check the runner is up:
+
+```bash
+[redacted]
+gh api repos/<owner>/<repo>/actions/runners --jq '.runners[] | "\(.name) \(.status)"'
+```
+
+Jobs can also fail for reasons that have nothing to do with the code: the runner downloads actions anonymously from `codeload.github.com`, so it is subject to whatever rate limit applies to that machine's IP. A `429 Too Many Requests` on `actions/checkout` is not a broken workflow.
+
+### Accepted risk
+
+[redacted]
+
+This is **knowingly accepted** for now — the repo is private, so only collaborators can trigger a run, and the workflow guards against fork pull requests reaching the runner (`if: github.event.pull_request.head.repo.full_name == github.repository`) with `permissions: contents: read` and `persist-credentials: false`.
+
+[redacted]
+
 ## Code Guidelines
 
 - **Tests first** — AAA pattern (Arrange, Act, Assert). See [CLAUDE.md](CLAUDE.md).
