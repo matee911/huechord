@@ -13,6 +13,12 @@ export const MAX_DOMINANT_COLORS = 8;
  * Reduces an interleaved pixel buffer to the colors that cover most of it,
  * heaviest first. Pure and host-agnostic: it takes the raw samples and the
  * channel count, never a Photoshop handle.
+ *
+ * `channels` must be at least 3 — the first three samples of every pixel are
+ * read as red, green and blue, and a fourth, if present, as alpha.
+ *
+ * `maxColors` must be between 2 and 256, the range the quantizer accepts.
+ * Outside it there is no palette to compute and the result is empty.
  */
 export const extractDominantColors = (
   data: Uint8Array | Uint8ClampedArray,

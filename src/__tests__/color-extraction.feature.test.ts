@@ -260,6 +260,39 @@ describeFeature(feature, ({ Scenario }) => {
     },
   );
 
+  // imageData.components is 3 for an RGB document and 4 for RGBA, so both are
+  // values the host really produces -- the alpha-free path cannot be assumed
+  // dead just because the test buffers above all carry four channels.
+  Scenario(
+    "A buffer without an alpha channel",
+    ({ Given, When, Then, And }) => {
+      Given(
+        "a three-channel buffer of 400 pixels that is three quarters 255, 0, 0 and one quarter 0, 0, 255",
+        () => {
+          buffer = Uint8ClampedArray.from(
+            [
+              ...Array.from({ length: 300 }, () => [255, 0, 0]),
+              ...Array.from({ length: 100 }, () => [0, 0, 255]),
+            ].flat(),
+          );
+        },
+      );
+
+      When("dominant colors are extracted from three-channel data", () => {
+        palette = extractDominantColors(buffer, 3);
+      });
+
+      Then("exactly 2 dominant colors are returned", () => {
+        expect(palette).toHaveLength(2);
+      });
+
+      And("the weights are approximately 0.75 and 0.25 in that order", () => {
+        expect(palette[0].weight).toBeCloseTo(0.75, 2);
+        expect(palette[1].weight).toBeCloseTo(0.25, 2);
+      });
+    },
+  );
+
   Scenario("Nothing left to quantize", ({ Given, When, Then }) => {
     Given("a buffer of 400 pixels that are all fully transparent", () => {
       buffer = bufferOf(uniform(400, [120, 200, 40], 0));

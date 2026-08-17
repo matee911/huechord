@@ -50,6 +50,12 @@ Feature: Dominant color extraction
     Then exactly 2 dominant colors are returned
     And every weight is approximately 0.5
 
+  Scenario: A buffer without an alpha channel
+    Given a three-channel buffer of 400 pixels that is three quarters 255, 0, 0 and one quarter 0, 0, 255
+    When dominant colors are extracted from three-channel data
+    Then exactly 2 dominant colors are returned
+    And the weights are approximately 0.75 and 0.25 in that order
+
   Scenario: Nothing left to quantize
     Given a buffer of 400 pixels that are all fully transparent
     When dominant colors are extracted

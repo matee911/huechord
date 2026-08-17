@@ -7,9 +7,10 @@ import type { DominantColor } from "../algorithms/types";
 
 export const DEBOUNCE_MS = 400;
 
-// Hue, saturation and lightness are logged rounded and the weight to three
-// places: this line is read by a human in the UDT console, and full float
-// precision makes a six-color palette unreadable.
+// Values are cut down before logging: this line is read by a human in the UDT
+// console, and a palette at full float precision is not something a human
+// reads. The angle and the percentages round to whole units; the weight keeps
+// enough places to tell a dominant color from a trace one.
 const formatPalette = (palette: DominantColor[]): string =>
   JSON.stringify(
     palette.map(({ rgb, hsl, weight }) => ({
@@ -21,11 +22,16 @@ const formatPalette = (palette: DominantColor[]): string =>
     })),
   );
 
-const analyzeDocument = async (): Promise<void> => {
+const analyzeDocument = async (isStopped: () => boolean): Promise<void> => {
   const acquired = await acquirePixels();
   // Undefined when there is no open document, or when an acquisition is
   // already in flight. Both are ordinary, and imaging.ts has already logged.
   if (!acquired) return;
+
+  // Acquisition is a round trip through the host, and the panel can close
+  // during it. Logging a palette for a document nobody is watching is noise
+  // at best, and reads as a live panel at worst.
+  if (isStopped()) return;
 
   const start = Date.now();
   const palette = extractDominantColors(acquired.data, acquired.channels);
@@ -58,7 +64,7 @@ export const startPixelPipeline = (): (() => void) => {
     if (stopped) return;
     // Quantization is third-party code running on host-supplied bytes; a throw
     // there would surface as an unhandled rejection with no panel-side trace.
-    analyzeDocument().catch((error) => {
+    analyzeDocument(() => stopped).catch((error) => {
       logger.error("Failed to analyze the document", error as Error);
     });
   }, DEBOUNCE_MS);

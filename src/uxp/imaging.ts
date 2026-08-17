@@ -54,7 +54,11 @@ export const acquirePixels = async (): Promise<
           //
           // The union in the declared return type covers 16- and 32-bit
           // sources; componentSize: 8 above is what narrows it to bytes here.
-          data: (await imageData.getData({})) as Uint8Array,
+          //
+          // chunky is the host default, but it is stated for the same reason
+          // colorSpace is: a planar buffer would feed extraction garbage
+          // silently, with no error to point at.
+          data: (await imageData.getData({ chunky: true })) as Uint8Array,
         };
       },
       { commandName: "Acquire pixels for color harmony analysis" },

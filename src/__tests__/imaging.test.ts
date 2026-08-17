@@ -124,6 +124,34 @@ describe("acquirePixels", () => {
     expect(result?.channels).toBe(4);
   });
 
+  // getData is the new failure surface this wrapper exposes. dispose is bound
+  // before the read, so the handle must still be released when the read is the
+  // thing that fails -- otherwise a transient host error leaks pixel data.
+  it("still disposes when reading the samples fails", async () => {
+    const dispose = vi.fn();
+    const failure = new Error("image data released");
+    hostReturns({
+      width: 100,
+      height: 75,
+      getData: () => Promise.reject(failure),
+      dispose,
+    });
+
+    const result = await acquirePixels();
+
+    expect(result).toBeUndefined();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      "Pixel acquisition failed",
+      failure,
+    );
+
+    // The in-flight guard has to clear too, or one transient read failure
+    // silences the panel for the rest of the session.
+    await acquirePixels();
+    expect(getPixelsMock).toHaveBeenCalledTimes(2);
+  });
+
   it("disposes the image data once, after the modal scope has closed", async () => {
     let modalDepthAtDispose = -1;
     const dispose = vi.fn(() => {

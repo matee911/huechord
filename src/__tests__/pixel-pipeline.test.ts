@@ -120,19 +120,74 @@ describe("startPixelPipeline", () => {
     });
   });
 
+  // Driven through the logger rather than through acquisition: acquirePixels
+  // swallows its own errors and resolves undefined, so it cannot be the thing
+  // that rejects. What this pins is that a throw anywhere downstream of it --
+  // quantization on host-supplied bytes being the real candidate -- is reported
+  // rather than escaping as an unhandled rejection.
   it("reports a failed analysis instead of raising an unhandled rejection", async () => {
     const unsubscribe = vi.fn().mockResolvedValue(undefined);
     listenForDocumentChanges.mockResolvedValue(unsubscribe);
-    acquirePixels.mockRejectedValue(new Error("host went away"));
+    acquisitionYields([[255, 0, 0, 255]]);
+    loggerInfo.mockImplementation(() => {
+      throw new Error("console detached");
+    });
 
-    startPixelPipeline();
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+
+    try {
+      startPixelPipeline();
+      await vi.waitFor(() =>
+        expect(listenForDocumentChanges).toHaveBeenCalled(),
+      );
+
+      notifyDocumentChange();
+      vi.advanceTimersByTime(DEBOUNCE_MS);
+
+      await vi.waitFor(() => expect(loggerError).toHaveBeenCalledTimes(1));
+      expect(loggerError.mock.calls[0][0]).toContain("Failed to analyze");
+
+      vi.useRealTimers();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
+  });
+
+  // Acquisition is a round trip through the host and the panel can close
+  // mid-flight. Without the check the palette still reaches the console, which
+  // reads as a panel that is somehow still watching.
+  it("does not log a palette for a pipeline stopped mid-acquisition", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+
+    let finishAcquisition!: (result: unknown) => void;
+    acquirePixels.mockReturnValue(
+      new Promise((resolve) => {
+        finishAcquisition = resolve;
+      }),
+    );
+
+    const stop = startPixelPipeline();
     await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
 
     notifyDocumentChange();
     vi.advanceTimersByTime(DEBOUNCE_MS);
+    await vi.waitFor(() => expect(acquirePixels).toHaveBeenCalledTimes(1));
 
-    await vi.waitFor(() => expect(loggerError).toHaveBeenCalledTimes(1));
-    expect(loggerError.mock.calls[0][0]).toContain("Failed to analyze");
+    stop();
+    finishAcquisition({
+      pixelCount: 1,
+      durationMs: 1,
+      data: Uint8Array.from([255, 0, 0, 255]),
+      channels: 4,
+    });
+
+    vi.useRealTimers();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(loggerInfo).not.toHaveBeenCalled();
   });
 
   it("removes the listener when stopped after the subscription resolved", async () => {
