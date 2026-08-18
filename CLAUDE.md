@@ -42,6 +42,7 @@ Algorithms in `src/algorithms/` are pure functions with no PS dependencies — f
 - [docs/analysis-*.md](docs/) — Research & analysis
 - [docs/project-structure.md](docs/project-structure.md) — Directory layout
 - [docs/implementation-plan.md](docs/implementation-plan.md) — MVP step-by-step plan
+- [docs/manual-testing-in-photoshop.md](docs/manual-testing-in-photoshop.md) — Driving PS/UDT from a terminal
 
 ## Common Commands
 
@@ -70,3 +71,5 @@ yarn typecheck       # TypeScript checks
 - `require("photoshop")` only available in UXP context, never in WebView.
 - Use `imaging.getPixels({ targetSize: { width: 100 } })` for performance.
 - Test on both Windows and macOS before distribution.
+- Script-made edits (`do javascript`) never emit `historyStateChanged`, so they do not trigger
+  re-analysis — trigger it from the UI. See [docs/manual-testing-in-photoshop.md](docs/manual-testing-in-photoshop.md).
