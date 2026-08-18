@@ -85,13 +85,16 @@ describe("bridge message contract", () => {
   });
 
   it("keeps the contents of a rejected message out of the log", () => {
-    // A rejected payload carries colors read out of the user's image and has
-    // no size limit -- the reason for dropping it is the useful part.
-    parseBridgeMessage({ type: "palette", version: BRIDGE_VERSION });
+    // A rejected message carries colors read out of the user's image and, being
+    // rejected, has no bounded size -- neither half of the log line may repeat
+    // it back. The reason for dropping it is the part worth keeping.
+    const secret = "x".repeat(500);
+    parseBridgeMessage({ type: secret, version: BRIDGE_VERSION });
 
-    const [, data] = (logger.warn as ReturnType<typeof vi.fn>).mock
+    const [message, data] = (logger.warn as ReturnType<typeof vi.fn>).mock
       .calls[0] as [string, Record<string, unknown>];
-    expect(data).toEqual({ received: "object" });
+    expect(message).not.toContain(secret);
+    expect(JSON.stringify(data)).not.toContain(secret);
   });
 });
 
@@ -111,6 +114,65 @@ describe("parseBridgeMessage rejects", () => {
     ["a message with no version", { type: "ready" }],
     ["a future schema version", { type: "ready", version: BRIDGE_VERSION + 1 }],
     ["a palette with no payload", { type: "palette", version: BRIDGE_VERSION }],
+    [
+      "a palette longer than the contract allows",
+      {
+        type: "palette",
+        version: BRIDGE_VERSION,
+        payload: {
+          colors: Array.from({ length: MAX_PALETTE_COLORS + 1 }, () =>
+            aColor(0, 0.1),
+          ),
+          timestamp: 1,
+        },
+      },
+    ],
+    [
+      "a palette with holes in it, which every() would skip over",
+      {
+        type: "palette",
+        version: BRIDGE_VERSION,
+        payload: { colors: new Array(3) as unknown[], timestamp: 1 },
+      },
+    ],
+    [
+      "a version of NaN, which no comparison rejects on its own",
+      { type: "ready", version: Number.NaN },
+    ],
+    [
+      "a color channel of NaN, which would render as nothing",
+      {
+        type: "palette",
+        version: BRIDGE_VERSION,
+        payload: {
+          colors: [
+            {
+              rgb: { r: Number.NaN, g: 2, b: 3 },
+              hsl: { h: 0, s: 0, l: 0 },
+              weight: 1,
+            },
+          ],
+          timestamp: 1,
+        },
+      },
+    ],
+    [
+      "an infinite hue, which would place a dot nowhere",
+      {
+        type: "palette",
+        version: BRIDGE_VERSION,
+        payload: {
+          colors: [
+            {
+              rgb: { r: 1, g: 2, b: 3 },
+              hsl: { h: Number.POSITIVE_INFINITY, s: 0, l: 0 },
+              weight: 1,
+            },
+          ],
+          timestamp: 1,
+        },
+      },
+    ],
     [
       "a palette whose colors are not an array",
       {

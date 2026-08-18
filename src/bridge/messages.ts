@@ -88,12 +88,11 @@ export const parseBridgeMessage = (raw: unknown): BridgeMessage | null => {
   if (typeof raw.type !== "string") return reject("no message type", raw);
   if (!isFiniteNumber(raw.version)) return reject("no schema version", raw);
   if (raw.version > BRIDGE_VERSION)
-    return reject(`schema version ${raw.version} is from a later build`, raw);
+    return reject("schema version is from a later build", raw);
 
   if (raw.type === "ready") return { type: "ready", version: raw.version };
 
-  if (raw.type !== "palette")
-    return reject(`unknown message type "${raw.type}"`, raw);
+  if (raw.type !== "palette") return reject("unknown message type", raw);
 
   const payload = raw.payload;
   if (!isRecord(payload)) return reject("palette has no payload", raw);
@@ -101,15 +100,16 @@ export const parseBridgeMessage = (raw: unknown): BridgeMessage | null => {
     return reject("palette has no timestamp", raw);
   if (!Array.isArray(payload.colors))
     return reject("palette colors are not a list", raw);
-  // The extractor cannot produce more than it is asked for, so a longer list
-  // did not come from it. Rendering one dot per entry for an unbounded list
-  // would hang the panel, and the receiver is the only place that can say no.
-  // Without a ceiling, one oversized message renders a dot per entry and hangs
-  // the panel; the receiver is the only place that can refuse it.
+  // Without a ceiling, one oversized message draws a dot per entry and takes
+  // the panel with it; the receiver is the only place that can refuse it.
   if (payload.colors.length > MAX_PALETTE_COLORS)
     return reject("palette holds more colors than the contract allows", raw);
-  if (!payload.colors.every(isDominantColor))
-    return reject("palette contains a malformed color", raw);
+  // Indexed rather than `every`, which skips the holes in a sparse array --
+  // and a hole reaching the panel throws on the first property read, which is
+  // the exact failure this validation exists to prevent.
+  for (let i = 0; i < payload.colors.length; i += 1)
+    if (!isDominantColor(payload.colors[i]))
+      return reject("palette contains a malformed color", raw);
 
   return {
     type: "palette",

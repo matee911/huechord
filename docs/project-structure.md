@@ -17,7 +17,7 @@ colors/
 │   ├── icons/                    # Plugin icons (23x23, 48x48 PNG)
 │   └── index.html                # UXP entrypoint (loads bundle)
 ├── src/
-│   ├── main.ts                   # UXP entrypoint, event listeners, panel lifecycle
+│   ├── main.tsx                  # UXP entrypoint, event listeners, panel lifecycle
 │   ├── lib/
 │   │   ├── logger.ts             # Logger abstraction (console now, Sentry later)
 │   │   └── debounce.ts           # Generic debounce utility
@@ -58,7 +58,7 @@ colors/
 ```mermaid
 graph LR
     subgraph UXP Context
-        M[main.ts]
+        M[main.tsx]
         U[uxp/]
         A[algorithms/]
     end
@@ -78,7 +78,7 @@ graph LR
     U -->|postMessage| W
 ```
 
-### UXP Context (`src/main.ts`, `src/uxp/`, `src/algorithms/`)
+### UXP Context (`src/main.tsx`, `src/uxp/`, `src/algorithms/`)
 
 - Runs in UXP runtime (not a browser)
 - Has access to Photoshop APIs (`require("photoshop")`)

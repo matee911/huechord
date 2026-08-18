@@ -36,6 +36,18 @@ describe("coverage gate", () => {
     });
   });
 
+  it("leaves out only wiring, never logic", () => {
+    // The exclusions are what a gate is talked out of measuring, so they are
+    // asserted rather than left to whoever edits the config next.
+    expect(coverage && "exclude" in coverage ? coverage.exclude : []).toEqual([
+      "src/**/types.ts",
+      "webview-ui/src/webview.ts",
+      "webview-ui/src/webview-api.ts",
+      "webview-ui/src/webview-setup.ts",
+      "webview-ui/src/vite-env.d.ts",
+    ]);
+  });
+
   it("measures the code the pyramid is meant to reach", () => {
     // Scoped deliberately: React entrypoints and WebView glue would drag the
     // number around for reasons unrelated to how well the logic is tested.
@@ -44,6 +56,7 @@ describe("coverage gate", () => {
       "src/bridge/**/*.ts",
       "src/lib/**/*.ts",
       "src/uxp/**/*.ts",
+      "webview-ui/src/**/*.ts",
     ]);
   });
 });

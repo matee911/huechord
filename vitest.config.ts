@@ -10,16 +10,24 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       // Scoped to the code the test pyramid is supposed to reach. The React
-      // entrypoints, the WebView host glue and the type-only modules are
-      // wiring with nothing to assert; measuring them would produce a number
-      // that drops whenever someone adds a line of bootstrap.
+      // entrypoints (`.tsx`), the WebView host glue and the type-only modules
+      // are wiring with nothing to assert; measuring them would produce a
+      // number that drops whenever someone adds a line of bootstrap.
       include: [
         "src/algorithms/**/*.ts",
         "src/bridge/**/*.ts",
         "src/lib/**/*.ts",
         "src/uxp/**/*.ts",
+        "webview-ui/src/**/*.ts",
       ],
-      exclude: ["src/**/types.ts"],
+      // Comlink wiring and ambient declarations: no logic, nothing to assert.
+      exclude: [
+        "src/**/types.ts",
+        "webview-ui/src/webview.ts",
+        "webview-ui/src/webview-api.ts",
+        "webview-ui/src/webview-setup.ts",
+        "webview-ui/src/vite-env.d.ts",
+      ],
       reporter: ["text", "html"],
       // Set at the level the suite already holds, so the gate catches a
       // regression rather than demanding a number nobody has hit yet. Raise

@@ -26,8 +26,10 @@ const reportFailedSend = (error: Error): void => {
   logger.error("Failed to send the palette to the WebView", error);
 };
 
-const send = (message: PaletteMessage): void => {
-  if (!sink) return;
+const flush = (): void => {
+  if (!sink || !webviewReady || !pending) return;
+  const message = pending;
+  pending = undefined;
   try {
     // Both failure shapes have to be caught: a synchronous throw from the
     // wiring, and a rejection from the call that crossed into the WebView.
@@ -38,15 +40,12 @@ const send = (message: PaletteMessage): void => {
   }
 };
 
-const flush = (): void => {
-  if (!sink || !webviewReady || !pending) return;
-  const message = pending;
-  pending = undefined;
-  send(message);
-};
-
 /** Registers the WebView as the destination for bridge messages. */
 export const connectWebview = (nextSink: BridgeSink): void => {
+  // The handshake is deliberately NOT reset here: the WebView can announce
+  // itself before the host finishes wiring up its end, and forgetting that
+  // would strand the very first palette. A WebView going away resets it
+  // instead, which is what `disconnectWebview` is for.
   sink = nextSink;
   flush();
 };
@@ -60,9 +59,7 @@ export const disconnectWebview = (): void => {
 
 /** Handles anything the WebView sends back over the bridge. */
 export const handleWebviewMessage = (raw: unknown): void => {
-  const message = parseBridgeMessage(raw);
-  if (!message) return;
-  if (message.type !== "ready") return;
+  if (parseBridgeMessage(raw)?.type !== "ready") return;
 
   webviewReady = true;
   flush();
