@@ -14,5 +14,13 @@
     "jsx": "react-jsx",
     "types": []
   },
-  "include": ["./src"]
+  // The bridge contract and the logger are shared with the UXP context on
+  // purpose — one definition of the wire format, imported by both sides — so
+  // they have to be part of this project too, not just resolvable from it.
+  "include": [
+    "./src",
+    "../src/bridge",
+    "../src/lib",
+    "../src/algorithms/types.ts"
+  ]
 }

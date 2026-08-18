@@ -3,6 +3,7 @@ import { debounce } from "../lib/debounce";
 import { acquirePixels } from "./imaging";
 import { listenForDocumentChanges } from "./events";
 import { extractDominantColors } from "../algorithms/color-extraction";
+import { publishPalette } from "./palette-publisher";
 import type { DominantColor } from "../algorithms/types";
 
 export const DEBOUNCE_MS = 400;
@@ -40,6 +41,8 @@ const analyzeDocument = async (isStopped: () => boolean): Promise<void> => {
   logger.info(
     `Extracted ${palette.length} colors in ${durationMs}ms: ${formatPalette(palette)}`,
   );
+
+  publishPalette(palette, Date.now());
 };
 
 /**

@@ -4,6 +4,7 @@ const listenForDocumentChanges = vi.fn();
 const acquirePixels = vi.fn();
 const loggerError = vi.fn();
 const loggerInfo = vi.fn();
+const publishPalette = vi.fn();
 
 vi.mock("../uxp/events", () => ({
   listenForDocumentChanges: (...args: unknown[]) =>
@@ -11,6 +12,9 @@ vi.mock("../uxp/events", () => ({
 }));
 vi.mock("../uxp/imaging", () => ({
   acquirePixels: (...args: unknown[]) => acquirePixels(...args),
+}));
+vi.mock("../uxp/palette-publisher", () => ({
+  publishPalette: (...args: unknown[]) => publishPalette(...args),
 }));
 vi.mock("../lib/logger", () => ({
   logger: {
@@ -48,6 +52,7 @@ describe("startPixelPipeline", () => {
     acquirePixels.mockReset().mockResolvedValue(undefined);
     loggerError.mockReset();
     loggerInfo.mockReset();
+    publishPalette.mockReset();
   });
 
   // Real extraction runs here rather than a mock: the point of the assertion is
@@ -118,6 +123,34 @@ describe("startPixelPipeline", () => {
       l: expect.any(Number),
       weight: expect.any(Number),
     });
+  });
+
+  // The console line above is for whoever is debugging; this is what the panel
+  // actually draws, so the two are asserted separately.
+  it("publishes the extracted palette to the WebView", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+    acquisitionYields([
+      ...Array.from({ length: 30 }, () => [255, 0, 0, 255]),
+      ...Array.from({ length: 10 }, () => [0, 0, 255, 255]),
+    ]);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+
+    await vi.waitFor(() => expect(publishPalette).toHaveBeenCalledTimes(1));
+    const [colors, timestamp] = publishPalette.mock.calls[0] as [
+      { hsl: { h: number }; weight: number }[],
+      number,
+    ];
+    expect(colors.map(({ hsl, weight }) => [hsl.h, weight])).toEqual([
+      [0, 0.75],
+      [240, 0.25],
+    ]);
+    expect(timestamp).toEqual(expect.any(Number));
   });
 
   // Driven through the logger rather than through acquisition: acquirePixels

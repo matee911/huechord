@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { webviewInitHost } from "./webview-setup-host";
 import { logger } from "./lib/logger";
 import { startPixelPipeline } from "./uxp/pixel-pipeline";
+import { connectWebview, disconnectWebview } from "./uxp/palette-publisher";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- required by TS to augment the global JSX namespace
@@ -25,7 +26,12 @@ export const App = () => {
       logger.info("WebView bridge established", {
         panels: apis.length,
       });
+      // Single-panel plugin: the first WebView is the one that draws.
+      const [panel] = apis;
+      if (panel)
+        connectWebview((message) => panel.receiveBridgeMessage(message));
     });
+    return () => disconnectWebview();
   }, [webviewUI]);
 
   useEffect(() => startPixelPipeline(), []);

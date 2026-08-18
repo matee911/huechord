@@ -19,6 +19,7 @@
     "./uxp.config.ts",
     "./vitest.config.ts",
     "./webview-ui/src/webview.ts",
-    "./webview-ui/src/webview-api.ts"
+    "./webview-ui/src/webview-api.ts",
+    "./webview-ui/src/palette-store.ts"
   ]
 }

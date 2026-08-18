@@ -1,3 +1,5 @@
+export { receiveBridgeMessage } from "./palette-store";
+
 export const pingWebview = () => {
   console.log("pingWebview called");
   return "hello from webview";
