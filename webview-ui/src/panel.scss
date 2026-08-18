@@ -11,14 +11,17 @@
   box-sizing: border-box;
   width: 100%;
   min-height: 100vh;
+  // The width the panel's contents share. It follows the panel so a retoucher
+  // who widens it gets a bigger wheel to judge, and yields to the height so a
+  // wide, shallow panel does not push the palette bar out of sight.
+  --panel-measure: min(100%, 62vh);
   background: var(--uxp-host-background-color, #323232);
   color: var(--uxp-host-text-color, #ffffff);
 }
 
 .wheel {
   position: relative;
-  width: 100%;
-  max-width: 260px;
+  width: var(--panel-measure);
   aspect-ratio: 1;
 }
 
@@ -86,8 +89,7 @@
 
 .palette-bar {
   display: flex;
-  width: 100%;
-  max-width: 260px;
+  width: var(--panel-measure);
   height: 28px;
   border: 1px solid var(--uxp-host-border-color, #292929);
   border-radius: 3px;

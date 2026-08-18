@@ -52,6 +52,28 @@ Notes worth having up front:
   from **Plugins → Color Harmony Wheel → Color Harmony Wheel** — that entry is a toggle, so check the
   window list instead of clicking blind. Photoshop's own theme cycles with Shift+F1 / Shift+F2.
 
+## Reading numbers out of the UXP context
+
+A native `<webview>` paints over anything the host panel draws, so a diagnostic element
+appended to the host DOM is invisible while the WebView is up. The channel that does work is the
+plugin's own data folder:
+
+```js
+const folder = await require("uxp").storage.localFileSystem.getDataFolder();
+const file = await folder.createFile("probe.txt", { overwrite: true });
+await file.write(text);
+```
+
+It lands in `~/Library/Application Support/Adobe/UXP/PluginsStorage/PHSP/27/Developer/<plugin id>/PluginData/`,
+readable from a shell while Photoshop keeps running.
+
+What that measured about the host context, none of which the Adobe type declarations mention:
+
+- `window.innerWidth` and `innerHeight` are `undefined` — do not size anything from them.
+- `window` does emit `resize`, and `ResizeObserver` exists and fires. Both fired throughout a
+  panel drag.
+- `document.body` tracks the panel: it went 350 → 523 as the panel was dragged 362 → 535 points.
+
 ## When the panel misbehaves
 
 **Do not trust the UDT debugger window.** After a reload it can keep showing the previous session's
