@@ -2,19 +2,34 @@
 // look like Photoshop: `updateColorScheme` writes the real UI colors of the
 // running app into these variables, and the fallbacks only cover the moment
 // before the first scheme arrives.
+$row-gap: 12px;
+$panel-padding: 12px;
+$palette-bar-height: 28px;
+// The two lines of text under the bar. Approximate on purpose: it only has to
+// reserve enough room that they stay on screen, and pinning it to their exact
+// rendered height would make every font change a silent layout bug.
+$text-rows: 44px;
+// Everything in the panel that is not the wheel. Summed here rather than
+// guessed as a fraction, because it is a fixed number of pixels while the
+// panel's height is not -- a ratio that clears it in a tall panel overflows a
+// short one.
+$reserved-height: $panel-padding * 2 + $row-gap * 2 + $palette-bar-height +
+  $text-rows;
+
 .panel {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: $row-gap;
+  padding: $panel-padding;
   box-sizing: border-box;
   width: 100%;
   min-height: 100vh;
   // The width the panel's contents share. It follows the panel so a retoucher
-  // who widens it gets a bigger wheel to judge, and yields to the height so a
-  // wide, shallow panel does not push the palette bar out of sight.
-  --panel-measure: min(100%, 62vh);
+  // who widens it gets a bigger wheel to judge, and stops at whatever height is
+  // left once the palette bar and the harmony name have their room, so neither
+  // is pushed off the bottom of a shallow panel.
+  --panel-measure: min(100%, calc(100vh - #{$reserved-height}));
   background: var(--uxp-host-background-color, #323232);
   color: var(--uxp-host-text-color, #ffffff);
 }
@@ -90,7 +105,7 @@
 .palette-bar {
   display: flex;
   width: var(--panel-measure);
-  height: 28px;
+  height: $palette-bar-height;
   border: 1px solid var(--uxp-host-border-color, #292929);
   border-radius: 3px;
   overflow: hidden;

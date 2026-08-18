@@ -17,15 +17,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-main {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  > * {
-    margin-top: 1rem;
-  }
-}
 .code {
   font-family: "Courier New", monospace;
   margin-left: 0.25rem;
