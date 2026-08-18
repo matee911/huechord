@@ -1,11 +1,11 @@
 import { logger } from "../lib/logger";
 import {
   parseBridgeMessage,
-  paletteMessage,
+  analysisMessage,
+  type AnalysisMessage,
   type BridgeMessage,
-  type PaletteMessage,
 } from "../bridge/messages";
-import type { DominantColor } from "../algorithms/types";
+import type { DominantColor, HarmonyMatch } from "../algorithms/types";
 
 // The real sink is a Comlink call into the WebView, so it answers with a
 // promise and reports a torn-down panel by rejecting it, not by throwing.
@@ -13,17 +13,17 @@ export type BridgeSink = (message: BridgeMessage) => void | Promise<unknown>;
 
 let sink: BridgeSink | undefined;
 let webviewReady = false;
-// The last palette the WebView has not been told about yet. It exists because
-// the panel can extract a palette before the WebView finishes loading, and
+// The last analysis the WebView has not been told about yet. It exists because
+// the panel can analyze a document before the WebView finishes loading, and
 // postMessage has no buffer or retry of its own — without this, the first
 // analysis of a session would be lost and the wheel would stay empty until
 // the user made another edit.
-let pending: PaletteMessage | undefined;
+let pending: AnalysisMessage | undefined;
 
 const reportFailedSend = (error: Error): void => {
   // A closing panel can tear the WebView down between the ready handshake and
   // this call. That is a dead message, not a dead pipeline.
-  logger.error("Failed to send the palette to the WebView", error);
+  logger.error("Failed to send the analysis to the WebView", error);
 };
 
 const flush = (): void => {
@@ -65,11 +65,16 @@ export const handleWebviewMessage = (raw: unknown): void => {
   flush();
 };
 
-/** Hands a freshly extracted palette to the WebView, or holds it until it can. */
-export const publishPalette = (
+/**
+ * Hands a freshly analyzed document to the WebView, or holds it until it can.
+ * Palette and harmony go in one message: the harmony is a list of positions
+ * into the palette, so the two are not separable even in principle.
+ */
+export const publishAnalysis = (
   colors: DominantColor[],
+  harmony: HarmonyMatch | null,
   timestamp: number,
 ): void => {
-  pending = paletteMessage(colors, timestamp);
+  pending = analysisMessage(colors, harmony, timestamp);
   flush();
 };

@@ -1,4 +1,8 @@
-import type { DominantColor, Palette } from "../algorithms/types";
+import type {
+  DominantColor,
+  HarmonyMatch,
+  HarmonyType,
+} from "../algorithms/types";
 import { logger } from "../lib/logger";
 
 /**
@@ -11,19 +15,47 @@ import { logger } from "../lib/logger";
 // Bumped when an existing variant's shape changes in a way an older receiver
 // would misread. Adding a new `type` does not need a bump; the discriminant
 // already tells an older receiver it doesn't know the message.
-export const BRIDGE_VERSION = 1;
+export const BRIDGE_VERSION = 2;
 
-// The most colors a palette message may carry. Deliberately a property of the
+// The most colors an analysis message may carry. Deliberately a property of the
 // contract rather than an import from the extractor: the WebView would then
 // pull the whole quantizer into its bundle to learn one number, and a receiver
 // validating against the sender's current appetite is not validating at all.
 // A test pins it against what the extractor actually produces.
 export const MAX_PALETTE_COLORS = 16;
 
-export interface PaletteMessage {
-  type: "palette";
+// Every harmony this build knows how to name and draw, and how many colors each
+// one is made of. A receiver that trusted the sender's string would put an
+// unrenderable name in front of the user; one that trusted the count would draw
+// a four-sided "complementary" or a "square" collapsed onto a single point.
+// `null` is for the two whose size genuinely varies -- an arc of neighbouring
+// hues has no fixed color count.
+const HARMONY_SIZES: Record<HarmonyType, number | null> = {
+  complementary: 2,
+  triadic: 3,
+  "split-complementary": 3,
+  tetradic: 4,
+  square: 4,
+  analogous: null,
+  monochromatic: null,
+};
+
+/**
+ * One analysis of one document state. Palette and harmony travel together
+ * because they describe the same moment -- and here the harmony is a list of
+ * positions *into* the palette, so sent apart they could not even be read.
+ */
+export interface Analysis {
+  colors: DominantColor[];
+  // Null when the frame shows no harmony, which is the ordinary case.
+  harmony: HarmonyMatch | null;
+  timestamp: number;
+}
+
+export interface AnalysisMessage {
+  type: "analysis";
   version: number;
-  payload: Palette;
+  payload: Analysis;
 }
 
 export interface ReadyMessage {
@@ -31,15 +63,16 @@ export interface ReadyMessage {
   version: number;
 }
 
-export type BridgeMessage = PaletteMessage | ReadyMessage;
+export type BridgeMessage = AnalysisMessage | ReadyMessage;
 
-export const paletteMessage = (
+export const analysisMessage = (
   colors: DominantColor[],
+  harmony: HarmonyMatch | null,
   timestamp: number,
-): PaletteMessage => ({
-  type: "palette",
+): AnalysisMessage => ({
+  type: "analysis",
   version: BRIDGE_VERSION,
-  payload: { colors, timestamp },
+  payload: { colors, harmony, timestamp },
 });
 
 export const readyMessage = (): ReadyMessage => ({
@@ -68,6 +101,47 @@ const isDominantColor = (value: unknown): value is DominantColor =>
   isNumberTriplet(value.hsl, ["h", "s", "l"]) &&
   isFiniteNumber(value.weight);
 
+/**
+ * Checked against the palette it arrived with, not on its own: the indices are
+ * read straight into the geometry that draws the shape, so one out of range is
+ * a vertex at `cx="undefined"` -- a shape that silently loses a corner.
+ */
+const isHarmony = (
+  value: unknown,
+  colorCount: number,
+): value is HarmonyMatch => {
+  if (!isRecord(value)) return false;
+  if (!Object.hasOwn(HARMONY_SIZES, value.type as string)) return false;
+  // A deviation is an angle on the wheel, and half a turn is as far as two hues
+  // can be from each other.
+  if (
+    !isFiniteNumber(value.maxDeviation) ||
+    value.maxDeviation < 0 ||
+    value.maxDeviation > 180
+  )
+    return false;
+  if (!Array.isArray(value.colorIndices)) return false;
+
+  // Copied via Array.from for the same reason the colors are indexed: a hole in
+  // the array throws on the first read, and `every` walks straight past it.
+  const indices = Array.from(value.colorIndices);
+  const expected = HARMONY_SIZES[value.type as HarmonyType];
+  if (expected === null ? indices.length < 1 : indices.length !== expected)
+    return false;
+  if (indices.length > colorCount) return false;
+  // One color cannot occupy two corners of the same shape. Without this a
+  // square arrives as four references to one dot and is drawn as a point.
+  if (new Set(indices).size !== indices.length) return false;
+
+  return indices.every(
+    (index) =>
+      isFiniteNumber(index) &&
+      Number.isInteger(index) &&
+      index >= 0 &&
+      index < colorCount,
+  );
+};
+
 const reject = (reason: string, raw: unknown): null => {
   // The receiving side is the WebView, where an uncaught throw takes the whole
   // panel down. Every rejection is a log line and a null, never an exception.
@@ -92,12 +166,12 @@ export const parseBridgeMessage = (raw: unknown): BridgeMessage | null => {
 
   if (raw.type === "ready") return { type: "ready", version: raw.version };
 
-  if (raw.type !== "palette") return reject("unknown message type", raw);
+  if (raw.type !== "analysis") return reject("unknown message type", raw);
 
   const payload = raw.payload;
-  if (!isRecord(payload)) return reject("palette has no payload", raw);
+  if (!isRecord(payload)) return reject("analysis has no payload", raw);
   if (!isFiniteNumber(payload.timestamp))
-    return reject("palette has no timestamp", raw);
+    return reject("analysis has no timestamp", raw);
   if (!Array.isArray(payload.colors))
     return reject("palette colors are not a list", raw);
   // Without a ceiling, one oversized message draws a dot per entry and takes
@@ -111,9 +185,22 @@ export const parseBridgeMessage = (raw: unknown): BridgeMessage | null => {
     if (!isDominantColor(payload.colors[i]))
       return reject("palette contains a malformed color", raw);
 
+  // Checked last, and against the palette above: ordering the harmony first
+  // would reject every malformed palette as a malformed harmony, leaving the
+  // palette rules asserted by nothing.
+  if (
+    payload.harmony !== null &&
+    !isHarmony(payload.harmony, payload.colors.length)
+  )
+    return reject("analysis carries a malformed harmony", raw);
+
   return {
-    type: "palette",
+    type: "analysis",
     version: raw.version,
-    payload: { colors: payload.colors, timestamp: payload.timestamp },
+    payload: {
+      colors: payload.colors,
+      harmony: payload.harmony as HarmonyMatch | null,
+      timestamp: payload.timestamp,
+    },
   };
 };

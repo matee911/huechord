@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
-import type {
-  RGBColor,
-  HSLColor,
-  Palette,
-  HarmonyMatch,
-} from "../algorithms/types";
+import type { RGBColor, HSLColor, HarmonyMatch } from "../algorithms/types";
+import type { Analysis } from "../bridge/messages";
 
 describe("types", () => {
   it("RGBColor is structurally valid", () => {
@@ -19,8 +15,9 @@ describe("types", () => {
     expect(color.h).toBe(180);
   });
 
-  it("Palette holds DominantColors", () => {
-    const palette: Palette = {
+  it("Analysis holds DominantColors", () => {
+    const palette: Analysis = {
+      harmony: null,
       colors: [
         {
           rgb: { r: 255, g: 0, b: 0 },

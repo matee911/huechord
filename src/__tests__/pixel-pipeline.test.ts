@@ -4,7 +4,8 @@ const listenForDocumentChanges = vi.fn();
 const acquirePixels = vi.fn();
 const loggerError = vi.fn();
 const loggerInfo = vi.fn();
-const publishPalette = vi.fn();
+const publishAnalysis = vi.fn();
+const loggerWarn = vi.fn();
 
 vi.mock("../uxp/events", () => ({
   listenForDocumentChanges: (...args: unknown[]) =>
@@ -14,16 +15,17 @@ vi.mock("../uxp/imaging", () => ({
   acquirePixels: (...args: unknown[]) => acquirePixels(...args),
 }));
 vi.mock("../uxp/palette-publisher", () => ({
-  publishPalette: (...args: unknown[]) => publishPalette(...args),
+  publishAnalysis: (...args: unknown[]) => publishAnalysis(...args),
 }));
 vi.mock("../lib/logger", () => ({
   logger: {
     error: (...args: unknown[]) => loggerError(...args),
     info: (...args: unknown[]) => loggerInfo(...args),
+    warn: (...args: unknown[]) => loggerWarn(...args),
   },
 }));
 
-const { startPixelPipeline, DEBOUNCE_MS } =
+const { startPixelPipeline, DEBOUNCE_MS, HARMONY_BUDGET_MS } =
   await import("../uxp/pixel-pipeline");
 
 // Hands back the promise the pipeline awaits plus its resolve/reject, so a test
@@ -51,8 +53,9 @@ describe("startPixelPipeline", () => {
     listenForDocumentChanges.mockReset();
     acquirePixels.mockReset().mockResolvedValue(undefined);
     loggerError.mockReset();
+    loggerWarn.mockReset();
     loggerInfo.mockReset();
-    publishPalette.mockReset();
+    publishAnalysis.mockReset();
   });
 
   // Real extraction runs here rather than a mock: the point of the assertion is
@@ -68,6 +71,10 @@ describe("startPixelPipeline", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    // The budget test stubs the clock. Left in place it advances 10ms on every
+    // read for the rest of the file, which is a failure nobody would connect
+    // back to here.
+    vi.restoreAllMocks();
   });
 
   it("acquires pixels once for a burst of document changes", async () => {
@@ -102,7 +109,7 @@ describe("startPixelPipeline", () => {
     notifyDocumentChange();
     vi.advanceTimersByTime(DEBOUNCE_MS);
 
-    await vi.waitFor(() => expect(loggerInfo).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(loggerInfo).toHaveBeenCalled());
     const [message] = loggerInfo.mock.calls[0] as [string];
     expect(message).toMatch(/^Extracted 2 colors in \d+ms: /);
 
@@ -141,16 +148,79 @@ describe("startPixelPipeline", () => {
     notifyDocumentChange();
     vi.advanceTimersByTime(DEBOUNCE_MS);
 
-    await vi.waitFor(() => expect(publishPalette).toHaveBeenCalledTimes(1));
-    const [colors, timestamp] = publishPalette.mock.calls[0] as [
+    await vi.waitFor(() => expect(publishAnalysis).toHaveBeenCalledTimes(1));
+    const [colors, harmony, timestamp] = publishAnalysis.mock.calls[0] as [
       { hsl: { h: number }; weight: number }[],
+      { type: string } | null,
       number,
     ];
     expect(colors.map(({ hsl, weight }) => [hsl.h, weight])).toEqual([
       [0, 0.75],
       [240, 0.25],
     ]);
+    // The palette and the harmony detected from it cross the bridge in one
+    // call, and the harmony indexes that very palette.
+    expect(harmony).toBeNull();
     expect(timestamp).toEqual(expect.any(Number));
+  });
+
+  it("publishes the harmony it detected together with the palette", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+    acquisitionYields([
+      ...Array.from({ length: 20 }, () => [255, 0, 0, 255]),
+      ...Array.from({ length: 20 }, () => [0, 255, 255, 255]),
+    ]);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+
+    await vi.waitFor(() => expect(publishAnalysis).toHaveBeenCalledTimes(1));
+    const [, harmony] = publishAnalysis.mock.calls[0] as [
+      unknown,
+      { type: string; colorIndices: number[] },
+    ];
+    expect(harmony).toMatchObject({ type: "complementary" });
+    expect(harmony.colorIndices).toHaveLength(2);
+    await vi.waitFor(() =>
+      expect(loggerInfo).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /Harmony: complementary across colors 0, 1 in \d+\.\d+ms/,
+        ),
+      ),
+    );
+    expect(loggerWarn).not.toHaveBeenCalled();
+  });
+
+  it("says so when detection overran its budget", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+    acquisitionYields(Array.from({ length: 40 }, () => [255, 0, 0, 255]));
+
+    // Detection is far too cheap to overrun on its own, so the clock is what
+    // moves. Without this the budget line is only ever asserted to stay quiet,
+    // which is the half that also passes when the warning is broken.
+    let reading = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => {
+      reading += HARMONY_BUDGET_MS * 2;
+      return reading;
+    });
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+
+    await vi.waitFor(() =>
+      expect(loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining("Harmony detection overran its budget"),
+        expect.objectContaining({ budgetMs: HARMONY_BUDGET_MS }),
+      ),
+    );
   });
 
   // Driven through the logger rather than through acquisition: acquirePixels

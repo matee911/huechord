@@ -3,10 +3,16 @@ import { debounce } from "../lib/debounce";
 import { acquirePixels } from "./imaging";
 import { listenForDocumentChanges } from "./events";
 import { extractDominantColors } from "../algorithms/color-extraction";
-import { publishPalette } from "./palette-publisher";
+import { detectHarmony } from "../algorithms/harmony";
+import { publishAnalysis } from "./palette-publisher";
 import type { DominantColor } from "../algorithms/types";
 
 export const DEBOUNCE_MS = 400;
+
+// What harmony detection is planned to cost per analysis. The plan says the
+// arithmetic involved cannot come close to it; this is what checks that claim
+// on the machine doing the retouching.
+export const HARMONY_BUDGET_MS = 5;
 
 // Values are cut down before logging: this line is read by a human in the UDT
 // console, and a palette at full float precision is not something a human
@@ -42,7 +48,26 @@ const analyzeDocument = async (isStopped: () => boolean): Promise<void> => {
     `Extracted ${palette.length} colors in ${durationMs}ms: ${formatPalette(palette)}`,
   );
 
-  publishPalette(palette, Date.now());
+  // Sub-millisecond by design, so the clock has to resolve better than a
+  // millisecond -- Date.now would report every analysis as 0ms and the budget
+  // check below would be a branch that can never be taken.
+  const detectionStart = performance.now();
+  const harmony = detectHarmony(palette);
+  const detectionMs = performance.now() - detectionStart;
+  const detectionTime = detectionMs.toFixed(2);
+
+  logger.info(
+    harmony
+      ? `Harmony: ${harmony.type} across colors ${harmony.colorIndices.join(", ")} in ${detectionTime}ms`
+      : `No harmony in this frame, decided in ${detectionTime}ms`,
+  );
+  if (detectionMs > HARMONY_BUDGET_MS)
+    logger.warn(
+      `Harmony detection overran its budget: ${detectionTime}ms for ${palette.length} colors`,
+      { budgetMs: HARMONY_BUDGET_MS },
+    );
+
+  publishAnalysis(palette, harmony, Date.now());
 };
 
 /**

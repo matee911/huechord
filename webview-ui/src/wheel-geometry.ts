@@ -1,4 +1,4 @@
-import type { DominantColor } from "../../src/algorithms/types";
+import type { DominantColor, HarmonyMatch } from "../../src/algorithms/types";
 
 /**
  * Pure geometry for the panel: where a color sits on the wheel and how much
@@ -46,6 +46,48 @@ export const swatchWidths = (colors: DominantColor[]): number[] => {
   const total = colors.reduce((sum, { weight }) => sum + weight, 0);
   if (total <= 0) return colors.map(() => 100 / colors.length);
   return colors.map(({ weight }) => (weight / total) * 100);
+};
+
+/**
+ * What the panel calls the harmony it found, or that it found none. It lives
+ * here with the rest of the presentation rules rather than inside a component,
+ * so the wording can be pinned by a test without rendering anything.
+ */
+export const harmonyLabel = (harmony: HarmonyMatch | null): string => {
+  if (!harmony) return "No harmony in this frame";
+
+  const name = harmony.type.charAt(0).toUpperCase() + harmony.type.slice(1);
+  // Monochromatic is the one harmony with no shape to draw, so the label has
+  // to carry what the wheel cannot: without the qualifier, a named harmony and
+  // an empty wheel read as a shape that failed to render.
+  return harmony.type === "monochromatic" ? `${name} — one hue` : name;
+};
+
+/**
+ * The dots a harmony runs through, in the order the shape connects them, as
+ * SVG polygon points — or `null` when there is no shape to draw. Positions come
+ * from the match rather than from a second pass over the palette, so a vertex
+ * always lands on the dot the user sees.
+ *
+ * Monochromatic draws nothing: it is a cluster of one hue, and a line between
+ * dots a few degrees apart says nothing the dots do not already say.
+ */
+export const harmonyShape = (
+  colors: DominantColor[],
+  harmony: HarmonyMatch | null,
+  wheelRadius: number,
+): { x: number; y: number }[] | null => {
+  if (
+    !harmony ||
+    harmony.type === "monochromatic" ||
+    harmony.colorIndices.length < 2
+  )
+    return null;
+
+  return harmony.colorIndices.map((index) => {
+    const { hsl } = colors[index];
+    return dotPosition(hsl.h, hsl.s, wheelRadius);
+  });
 };
 
 export const cssColor = ({ r, g, b }: DominantColor["rgb"]): string =>

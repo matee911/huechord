@@ -16,11 +16,6 @@ export interface DominantColor {
   weight: number; // 0-1 (proportion of image)
 }
 
-export interface Palette {
-  colors: DominantColor[];
-  timestamp: number;
-}
-
 export type HarmonyType =
   | "complementary"
   | "analogous"

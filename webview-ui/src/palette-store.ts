@@ -1,5 +1,5 @@
 import { parseBridgeMessage } from "../../src/bridge/messages";
-import type { DominantColor } from "../../src/algorithms/types";
+import type { DominantColor, HarmonyMatch } from "../../src/algorithms/types";
 
 type Listener = () => void;
 
@@ -8,12 +8,19 @@ type Listener = () => void;
 // subscribe. Keeping it out of the components is what lets them stay purely
 // presentational (CLAUDE.md).
 let colors: DominantColor[] = [];
+// The harmony the panel is currently showing, or null when the frame shows
+// none. It is only ever replaced together with the colors, because it points
+// *at* them by position -- a harmony from one edit over the dots of the next
+// would draw a shape through the wrong corners.
+let harmony: HarmonyMatch | null = null;
 // When the palette below arrived, so the panel can measure what it costs to
 // put it on screen rather than assume.
 let receivedAt = 0;
 const listeners = new Set<Listener>();
 
 export const getPalette = (): DominantColor[] => colors;
+
+export const getHarmony = (): HarmonyMatch | null => harmony;
 
 export const getPaletteReceivedAt = (): number => receivedAt;
 
@@ -32,9 +39,10 @@ export const subscribeToPalette = (listener: Listener): (() => void) => {
  */
 export const receiveBridgeMessage = (raw: unknown): void => {
   const message = parseBridgeMessage(raw);
-  if (!message || message.type !== "palette") return;
+  if (!message || message.type !== "analysis") return;
 
   colors = message.payload.colors;
+  harmony = message.payload.harmony;
   receivedAt = performance.now();
   for (const listener of listeners) listener();
 };

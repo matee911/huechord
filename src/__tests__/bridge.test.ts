@@ -2,19 +2,25 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   BRIDGE_VERSION,
   MAX_PALETTE_COLORS,
-  paletteMessage,
+  analysisMessage,
   readyMessage,
   parseBridgeMessage,
   type BridgeMessage,
 } from "../bridge/messages";
 import { setLogger, type Logger } from "../lib/logger";
 import { MAX_DOMINANT_COLORS } from "../algorithms/color-extraction";
-import type { DominantColor } from "../algorithms/types";
+import type { DominantColor, HarmonyMatch } from "../algorithms/types";
 
 const aColor = (h: number, weight: number): DominantColor => ({
   rgb: { r: 200, g: 100, b: 50 },
   hsl: { h, s: 60, l: 49 },
   weight,
+});
+
+const aHarmony = (): HarmonyMatch => ({
+  type: "triadic",
+  colorIndices: [0, 1, 2],
+  maxDeviation: 7,
 });
 
 const mockLogger = (): Logger => ({
@@ -36,13 +42,59 @@ afterEach(() => {
 
 describe("bridge message contract", () => {
   it("tags a palette message with its type and schema version", () => {
-    const message = paletteMessage([aColor(20, 0.5)], 1700000000000);
+    const message = analysisMessage([aColor(20, 0.5)], null, 1700000000000);
 
     expect(message).toEqual({
-      type: "palette",
+      type: "analysis",
       version: BRIDGE_VERSION,
-      payload: { colors: [aColor(20, 0.5)], timestamp: 1700000000000 },
+      payload: {
+        colors: [aColor(20, 0.5)],
+        harmony: null,
+        timestamp: 1700000000000,
+      },
     });
+  });
+
+  it("carries the harmony alongside the palette it points into", () => {
+    // One message, not two: the harmony names positions *in* the palette, so
+    // sent apart the panel could draw a shape through the wrong corners.
+    const colors = [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)];
+    const message = analysisMessage(colors, aHarmony(), 7);
+
+    expect(message.payload).toEqual({
+      colors,
+      harmony: aHarmony(),
+      timestamp: 7,
+    });
+  });
+
+  it("accepts an analysis that reports no harmony", () => {
+    expect(parseBridgeMessage(analysisMessage([], null, 1))).not.toBeNull();
+  });
+
+  it("accepts an analysis carrying a harmony it produced itself", () => {
+    const colors = [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)];
+    const message = analysisMessage(colors, aHarmony(), 1);
+
+    expect(parseBridgeMessage(JSON.parse(JSON.stringify(message)))).toEqual(
+      message,
+    );
+  });
+
+  it("blames the palette for a malformed palette, not the harmony", () => {
+    // Validation order is load-bearing: with the harmony checked first, every
+    // malformed-palette case below would be rejected before a color validator
+    // ever ran, and the palette rules would be asserted by nothing.
+    parseBridgeMessage({
+      type: "analysis",
+      version: BRIDGE_VERSION,
+      payload: { colors: "red", timestamp: 1 },
+    });
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("palette colors are not a list"),
+      expect.anything(),
+    );
   });
 
   it("tags a ready message with its type and schema version", () => {
@@ -53,13 +105,17 @@ describe("bridge message contract", () => {
     // postMessage across the UXP<->WebView boundary is a structured clone.
     // A payload that survives JSON is plain data — no Map, Set, class instance
     // or method sneaked in — which is the property that clone actually needs.
-    const message = paletteMessage([aColor(20, 0.5), aColor(200, 0.5)], 1);
+    const message = analysisMessage(
+      [aColor(20, 0.5), aColor(200, 0.5)],
+      null,
+      1,
+    );
 
     expect(JSON.parse(JSON.stringify(message))).toEqual(message);
   });
 
   it("accepts a palette message it produced itself", () => {
-    const message = paletteMessage([aColor(20, 1)], 42);
+    const message = analysisMessage([aColor(20, 1)], null, 42);
 
     expect(parseBridgeMessage(JSON.parse(JSON.stringify(message)))).toEqual(
       message,
@@ -81,7 +137,7 @@ describe("bridge message contract", () => {
       aColor(0, 1 / MAX_PALETTE_COLORS),
     );
 
-    expect(parseBridgeMessage(paletteMessage(colors, 1))).not.toBeNull();
+    expect(parseBridgeMessage(analysisMessage(colors, null, 1))).not.toBeNull();
   });
 
   it("keeps the contents of a rejected message out of the log", () => {
@@ -107,17 +163,20 @@ describe("parseBridgeMessage rejects", () => {
     ["null", null],
     ["a string", "palette"],
     ["a number", 42],
-    ["an array", [{ type: "palette", version: BRIDGE_VERSION }]],
+    ["an array", [{ type: "analysis", version: BRIDGE_VERSION }]],
     ["a message with no type", { version: BRIDGE_VERSION, payload: {} }],
     ["a non-string type", { type: 7, version: BRIDGE_VERSION }],
     ["an unknown type", { type: "harmony", version: BRIDGE_VERSION }],
     ["a message with no version", { type: "ready" }],
     ["a future schema version", { type: "ready", version: BRIDGE_VERSION + 1 }],
-    ["a palette with no payload", { type: "palette", version: BRIDGE_VERSION }],
+    [
+      "a palette with no payload",
+      { type: "analysis", version: BRIDGE_VERSION },
+    ],
     [
       "a palette longer than the contract allows",
       {
-        type: "palette",
+        type: "analysis",
         version: BRIDGE_VERSION,
         payload: {
           colors: Array.from({ length: MAX_PALETTE_COLORS + 1 }, () =>
@@ -130,7 +189,7 @@ describe("parseBridgeMessage rejects", () => {
     [
       "a palette with holes in it, which every() would skip over",
       {
-        type: "palette",
+        type: "analysis",
         version: BRIDGE_VERSION,
         payload: { colors: new Array(3) as unknown[], timestamp: 1 },
       },
@@ -142,7 +201,7 @@ describe("parseBridgeMessage rejects", () => {
     [
       "a color channel of NaN, which would render as nothing",
       {
-        type: "palette",
+        type: "analysis",
         version: BRIDGE_VERSION,
         payload: {
           colors: [
@@ -159,7 +218,7 @@ describe("parseBridgeMessage rejects", () => {
     [
       "an infinite hue, which would place a dot nowhere",
       {
-        type: "palette",
+        type: "analysis",
         version: BRIDGE_VERSION,
         payload: {
           colors: [
@@ -176,7 +235,7 @@ describe("parseBridgeMessage rejects", () => {
     [
       "a palette whose colors are not an array",
       {
-        type: "palette",
+        type: "analysis",
         version: BRIDGE_VERSION,
         payload: { colors: "red", timestamp: 1 },
       },
@@ -184,7 +243,7 @@ describe("parseBridgeMessage rejects", () => {
     [
       "a palette whose color is missing a channel",
       {
-        type: "palette",
+        type: "analysis",
         version: BRIDGE_VERSION,
         payload: {
           colors: [
@@ -197,7 +256,7 @@ describe("parseBridgeMessage rejects", () => {
     [
       "a palette whose weight is not a number",
       {
-        type: "palette",
+        type: "analysis",
         version: BRIDGE_VERSION,
         payload: {
           colors: [
@@ -213,7 +272,71 @@ describe("parseBridgeMessage rejects", () => {
     ],
     [
       "a palette with no timestamp",
-      { type: "palette", version: BRIDGE_VERSION, payload: { colors: [] } },
+      { type: "analysis", version: BRIDGE_VERSION, payload: { colors: [] } },
+    ],
+    [
+      "an analysis that says nothing about harmony at all",
+      {
+        type: "analysis",
+        version: BRIDGE_VERSION,
+        payload: { colors: [], timestamp: 1 },
+      },
+    ],
+    [
+      "a harmony this build cannot name",
+      {
+        type: "analysis",
+        version: BRIDGE_VERSION,
+        payload: {
+          colors: [aColor(0, 1)],
+          harmony: { type: "pentadic", colorIndices: [0], maxDeviation: 0 },
+          timestamp: 1,
+        },
+      },
+    ],
+    [
+      "a harmony pointing past the end of the palette it arrived with",
+      {
+        type: "analysis",
+        version: BRIDGE_VERSION,
+        payload: {
+          colors: [aColor(0, 1)],
+          harmony: {
+            type: "complementary",
+            colorIndices: [0, 1],
+            maxDeviation: 0,
+          },
+          timestamp: 1,
+        },
+      },
+    ],
+    [
+      "a harmony whose position is not a whole number",
+      {
+        type: "analysis",
+        version: BRIDGE_VERSION,
+        payload: {
+          colors: [aColor(0, 0.5), aColor(180, 0.5)],
+          harmony: {
+            type: "complementary",
+            colorIndices: [0, 1.5],
+            maxDeviation: 0,
+          },
+          timestamp: 1,
+        },
+      },
+    ],
+    [
+      "a harmony formed by no colors at all",
+      {
+        type: "analysis",
+        version: BRIDGE_VERSION,
+        payload: {
+          colors: [aColor(0, 1)],
+          harmony: { type: "monochromatic", colorIndices: [], maxDeviation: 0 },
+          timestamp: 1,
+        },
+      },
     ],
   ];
 

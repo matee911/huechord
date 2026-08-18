@@ -2,6 +2,7 @@ import React, { useEffect, useSyncExternalStore } from "react";
 import * as webviewAPI from "./webview-api";
 import { initWebview } from "./webview-setup";
 import {
+  getHarmony,
   getPalette,
   getPaletteReceivedAt,
   subscribeToPalette,
@@ -9,6 +10,7 @@ import {
 import { reportRenderTime } from "./render-budget";
 import { ColorWheel } from "./components/color-wheel";
 import { PaletteBar } from "./components/palette-bar";
+import { HarmonyLabel } from "./components/harmony-label";
 
 // The handshake and the Comlink wiring belong to the document, not to a
 // render: App re-renders on every palette, and repeating `expose` plus a
@@ -17,6 +19,7 @@ initWebview(webviewAPI);
 
 export const App = () => {
   const colors = useSyncExternalStore(subscribeToPalette, getPalette);
+  const harmony = useSyncExternalStore(subscribeToPalette, getHarmony);
 
   useEffect(() => {
     const receivedAt = getPaletteReceivedAt();
@@ -26,8 +29,9 @@ export const App = () => {
 
   return (
     <main className="panel">
-      <ColorWheel colors={colors} />
+      <ColorWheel colors={colors} harmony={harmony} />
       <PaletteBar colors={colors} />
+      <HarmonyLabel harmony={harmony} />
       <p className="panel-status">
         {colors.length > 0
           ? `${colors.length} dominant colors`

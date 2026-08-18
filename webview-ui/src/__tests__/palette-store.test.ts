@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  getHarmony,
   getPalette,
   getPaletteReceivedAt,
   receiveBridgeMessage,
   subscribeToPalette,
 } from "../palette-store";
-import { paletteMessage, readyMessage } from "../../../src/bridge/messages";
+import { analysisMessage, readyMessage } from "../../../src/bridge/messages";
 import { setLogger, type Logger } from "../../../src/lib/logger";
-import type { DominantColor } from "../../../src/algorithms/types";
+import type {
+  DominantColor,
+  HarmonyMatch,
+} from "../../../src/algorithms/types";
 
 const aColor = (h: number): DominantColor => ({
   rgb: { r: 10, g: 20, b: 30 },
@@ -15,18 +19,40 @@ const aColor = (h: number): DominantColor => ({
   weight: 1,
 });
 
+const aHarmony = (type: HarmonyMatch["type"]): HarmonyMatch => ({
+  type,
+  colorIndices: [0],
+  maxDeviation: 0,
+});
+
 beforeEach(() => {
   const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   setLogger(logger);
-  receiveBridgeMessage(paletteMessage([], 1));
+  receiveBridgeMessage(analysisMessage([], null, 1));
 });
 
 describe("palette store", () => {
+  it("replaces the harmony together with the colors it points into", () => {
+    receiveBridgeMessage(analysisMessage([aColor(10)], aHarmony("triadic"), 1));
+    receiveBridgeMessage(
+      analysisMessage([aColor(200)], aHarmony("monochromatic"), 2),
+    );
+
+    // Never one without the other: the harmony indexes the palette, so a
+    // leftover from the previous edit would draw a shape through the wrong dot.
+    expect(getPalette()).toEqual([aColor(200)]);
+    expect(getHarmony()).toEqual(aHarmony("monochromatic"));
+  });
+
+  it("reports no harmony until an analysis arrives carrying one", () => {
+    expect(getHarmony()).toBeNull();
+  });
+
   it("hands the received colors to whoever is subscribed", () => {
     const listener = vi.fn();
     subscribeToPalette(listener);
 
-    receiveBridgeMessage(paletteMessage([aColor(10)], 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(getPalette()).toEqual([aColor(10)]);
@@ -36,7 +62,7 @@ describe("palette store", () => {
     const listener = vi.fn();
     subscribeToPalette(listener)();
 
-    receiveBridgeMessage(paletteMessage([aColor(10)], 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -45,7 +71,7 @@ describe("palette store", () => {
     // The panel showing stale colors beats the panel going blank because
     // something upstream sent nonsense.
     const listener = vi.fn();
-    receiveBridgeMessage(paletteMessage([aColor(10)], 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
     subscribeToPalette(listener);
 
     expect(() => receiveBridgeMessage({ type: "wat" })).not.toThrow();
@@ -65,13 +91,13 @@ describe("palette store", () => {
   it("keeps a snapshot stable between palettes", () => {
     // useSyncExternalStore re-renders whenever the snapshot changes identity,
     // so a fresh array per read would loop the panel forever.
-    receiveBridgeMessage(paletteMessage([aColor(10)], 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
 
     expect(getPalette()).toBe(getPalette());
   });
 
   it("stamps when a palette arrived, so the render can be timed", () => {
-    receiveBridgeMessage(paletteMessage([aColor(10)], 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
 
     expect(getPaletteReceivedAt()).toBeGreaterThan(0);
   });

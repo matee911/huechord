@@ -1,6 +1,10 @@
 import React from "react";
 import { cssColor, dotPosition, dotRadius } from "../wheel-geometry";
-import type { DominantColor } from "../../../src/algorithms/types";
+import { HarmonyOverlay } from "./harmony-overlay";
+import type {
+  DominantColor,
+  HarmonyMatch,
+} from "../../../src/algorithms/types";
 
 // The wheel is drawn in its own coordinate space and scaled by the SVG
 // viewBox, so the panel can be resized without recomputing any geometry.
@@ -12,7 +16,13 @@ const MAX_DOT_RADIUS = 16;
 // rim instead of being sliced in half by the edge of the viewBox.
 const WHEEL_RADIUS = VIEWPORT_RADIUS - MAX_DOT_RADIUS;
 
-export const ColorWheel = ({ colors }: { colors: DominantColor[] }) => (
+export const ColorWheel = ({
+  colors,
+  harmony,
+}: {
+  colors: DominantColor[];
+  harmony: HarmonyMatch | null;
+}) => (
   <div className="wheel">
     {/* The hue ring and the desaturated center are CSS gradients painted once.
         Only the dots below are re-rendered when the palette changes, which is
@@ -22,8 +32,13 @@ export const ColorWheel = ({ colors }: { colors: DominantColor[] }) => (
       className="wheel-dots"
       viewBox={`${-VIEWPORT_RADIUS} ${-VIEWPORT_RADIUS} ${VIEWPORT_RADIUS * 2} ${VIEWPORT_RADIUS * 2}`}
       role="img"
-      aria-label={`Color wheel with ${colors.length} dominant colors`}
+      aria-label={
+        harmony
+          ? `Color wheel with ${colors.length} dominant colors, forming a ${harmony.type} harmony`
+          : `Color wheel with ${colors.length} dominant colors`
+      }
     >
+      <HarmonyOverlay colors={colors} harmony={harmony} radius={WHEEL_RADIUS} />
       {colors.map((color, index) => {
         const { x, y } = dotPosition(color.hsl.h, color.hsl.s, WHEEL_RADIUS);
         return (

@@ -3,6 +3,8 @@ import {
   cssColor,
   dotPosition,
   dotRadius,
+  harmonyLabel,
+  harmonyShape,
   swatchWidths,
 } from "../wheel-geometry";
 import type { DominantColor } from "../../../src/algorithms/types";
@@ -91,6 +93,78 @@ describe("swatchWidths", () => {
 
   it("has nothing to divide for an empty palette", () => {
     expect(swatchWidths([])).toEqual([]);
+  });
+});
+
+describe("harmonyLabel", () => {
+  it("names the harmony that was found", () => {
+    expect(
+      harmonyLabel({ type: "triadic", colorIndices: [], maxDeviation: 0 }),
+    ).toBe("Triadic");
+  });
+
+  it("keeps a hyphenated harmony readable", () => {
+    expect(
+      harmonyLabel({
+        type: "split-complementary",
+        colorIndices: [],
+        maxDeviation: 0,
+      }),
+    ).toBe("Split-complementary");
+  });
+
+  it("says a monochromatic palette is one hue, since nothing is drawn", () => {
+    expect(
+      harmonyLabel({
+        type: "monochromatic",
+        colorIndices: [0, 1],
+        maxDeviation: 4,
+      }),
+    ).toBe("Monochromatic — one hue");
+  });
+
+  it("says so when the frame shows none", () => {
+    expect(harmonyLabel(null)).toBe("No harmony in this frame");
+  });
+});
+
+describe("harmonyShape", () => {
+  const at = (h: number): DominantColor => ({
+    rgb: { r: 0, g: 0, b: 0 },
+    hsl: { h, s: 100, l: 50 },
+    weight: 0.5,
+  });
+
+  it("puts a vertex on each dot the harmony names, in its order", () => {
+    // The shape has to run through the dots the panel already drew, so the
+    // vertices come from the same placement rule rather than a second opinion.
+    const colors = [at(0), at(90), at(180)];
+    const points = harmonyShape(
+      colors,
+      { type: "complementary", colorIndices: [2, 0], maxDeviation: 0 },
+      100,
+    );
+
+    expect(points).toHaveLength(2);
+    expect(points?.[0].y).toBeCloseTo(100, 5);
+    expect(points?.[1].y).toBeCloseTo(-100, 5);
+  });
+
+  it("draws nothing for a monochromatic palette", () => {
+    // It names every eligible color, so a length check alone would draw a
+    // triangle through three dots a few degrees apart -- which says nothing
+    // the dots do not already say, and reads as a harmony that is not one.
+    expect(
+      harmonyShape(
+        [at(0), at(8), at(16)],
+        { type: "monochromatic", colorIndices: [0, 1, 2], maxDeviation: 8 },
+        100,
+      ),
+    ).toBeNull();
+  });
+
+  it("draws nothing when there is no harmony", () => {
+    expect(harmonyShape([at(0)], null, 100)).toBeNull();
   });
 });
 
