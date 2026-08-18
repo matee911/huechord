@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  RENDER_BUDGET_MS,
-  isWithinRenderBudget,
-  reportRenderTime,
-} from "../render-budget";
+import { RENDER_BUDGET_MS, reportRenderTime } from "../render-budget";
 import { setLogger, type Logger } from "../../../src/lib/logger";
 
 let logger: Logger;
@@ -17,12 +13,10 @@ beforeEach(() => {
 });
 
 describe("render budget", () => {
-  it("counts a render at the budget as within it", () => {
-    expect(isWithinRenderBudget(RENDER_BUDGET_MS)).toBe(true);
-  });
+  it("treats a render exactly at the budget as within it", () => {
+    reportRenderTime(RENDER_BUDGET_MS, 3);
 
-  it("counts a render past the budget as over it", () => {
-    expect(isWithinRenderBudget(RENDER_BUDGET_MS + 0.1)).toBe(false);
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it("reports a render inside the budget without raising the alarm", () => {

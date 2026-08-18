@@ -4,9 +4,13 @@ import type { DominantColor } from "../../../src/algorithms/types";
 
 // The wheel is drawn in its own coordinate space and scaled by the SVG
 // viewBox, so the panel can be resized without recomputing any geometry.
-const WHEEL_RADIUS = 100;
+const VIEWPORT_RADIUS = 100;
 const MIN_DOT_RADIUS = 4;
 const MAX_DOT_RADIUS = 16;
+// Dots are placed on a smaller circle than the one they are drawn in, so a
+// fully saturated color -- the common case when grading -- sits against the
+// rim instead of being sliced in half by the edge of the viewBox.
+const WHEEL_RADIUS = VIEWPORT_RADIUS - MAX_DOT_RADIUS;
 
 export const ColorWheel = ({ colors }: { colors: DominantColor[] }) => (
   <div className="wheel">
@@ -16,7 +20,7 @@ export const ColorWheel = ({ colors }: { colors: DominantColor[] }) => (
     <div className="wheel-face" aria-hidden="true" />
     <svg
       className="wheel-dots"
-      viewBox={`${-WHEEL_RADIUS} ${-WHEEL_RADIUS} ${WHEEL_RADIUS * 2} ${WHEEL_RADIUS * 2}`}
+      viewBox={`${-VIEWPORT_RADIUS} ${-VIEWPORT_RADIUS} ${VIEWPORT_RADIUS * 2} ${VIEWPORT_RADIUS * 2}`}
       role="img"
       aria-label={`Color wheel with ${colors.length} dominant colors`}
     >
