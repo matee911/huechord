@@ -41,6 +41,7 @@ describe("coverage gate", () => {
     // number around for reasons unrelated to how well the logic is tested.
     expect(coverage && "include" in coverage ? coverage.include : []).toEqual([
       "src/algorithms/**/*.ts",
+      "src/bridge/**/*.ts",
       "src/lib/**/*.ts",
       "src/uxp/**/*.ts",
     ]);

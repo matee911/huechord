@@ -28,16 +28,18 @@ Out of scope, deliberately:
 
 ## Responsibility split (DRY / SRP / Interface Segregation / Bounded Context)
 
-| Module                                               | Responsibility                                                                   | Knows about                       |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------- |
-| `src/algorithms/types.ts`                            | Color vocabulary (`DominantColor`, `Palette`) — unchanged                        | nothing                           |
-| `src/bridge/messages.ts` **(new)**                   | The wire contract: `BridgeMessage` union, `BRIDGE_VERSION`, `parseBridgeMessage` | `algorithms/types.ts` only        |
-| `src/uxp/palette-publisher.ts` **(new)**             | UXP side of transport: handshake state, last-palette buffer, send                | `bridge/messages.ts`, WebView API |
-| `src/uxp/pixel-pipeline.ts` **(modified)**           | Orchestration: event → debounce → acquire → extract → publish                    | both sides                        |
-| `webview-ui/src/palette-store.ts` **(new)**          | WebView side of transport: validate incoming message, expose palette to React    | `bridge/messages.ts`              |
-| `webview-ui/src/components/ColorWheel.tsx` **(new)** | Draw wheel + one dot per color                                                   | `algorithms/types.ts`             |
-| `webview-ui/src/components/PaletteBar.tsx` **(new)** | Draw weighted swatch strip                                                       | `algorithms/types.ts`             |
-| `webview-ui/src/theme.css` **(new)**                 | Photoshop-matching dark palette as CSS variables                                 | nothing                           |
+| Module                                                | Responsibility                                                                   | Knows about                       |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------- |
+| `src/algorithms/types.ts`                             | Color vocabulary (`DominantColor`, `Palette`) — unchanged                        | nothing                           |
+| `src/bridge/messages.ts` **(new)**                    | The wire contract: `BridgeMessage` union, `BRIDGE_VERSION`, `parseBridgeMessage` | `algorithms/types.ts` only        |
+| `src/uxp/palette-publisher.ts` **(new)**              | UXP side of transport: handshake state, last-palette buffer, send                | `bridge/messages.ts`, WebView API |
+| `src/uxp/pixel-pipeline.ts` **(modified)**            | Orchestration: event → debounce → acquire → extract → publish                    | both sides                        |
+| `webview-ui/src/palette-store.ts` **(new)**           | WebView side of transport: validate incoming message, expose palette to React    | `bridge/messages.ts`              |
+| `webview-ui/src/components/color-wheel.tsx` **(new)** | Draw wheel + one dot per color                                                   | `algorithms/types.ts`             |
+| `webview-ui/src/components/palette-bar.tsx` **(new)** | Draw weighted swatch strip                                                       | `algorithms/types.ts`             |
+| `webview-ui/src/panel.scss` **(new)**                 | Panel styles bound to the host color-scheme variables                            | nothing                           |
+| `webview-ui/src/wheel-geometry.ts` **(new)**          | Dot placement and swatch widths (pure)                                           | `algorithms/types.ts`             |
+| `webview-ui/src/render-budget.ts` **(new)**           | Reports render time against the 16ms budget                                      | `lib/logger.ts`                   |
 
 The boundary that matters: **`src/bridge/messages.ts` imports nothing from `src/uxp/` and nothing from React.** Both
 contexts import the same module, so the contract cannot drift between sender and receiver — this is the DRY argument

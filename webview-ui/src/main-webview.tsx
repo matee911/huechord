@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import * as webviewAPI from "./webview-api";
 import { initWebview } from "./webview-setup";
-import { subscribeToPalette } from "./palette-store";
+import { getPalette, subscribeToPalette } from "./palette-store";
 
 export const App = () => {
   initWebview(webviewAPI);
@@ -9,8 +9,8 @@ export const App = () => {
 
   useEffect(
     () =>
-      subscribeToPalette((colors) =>
-        setMessage(`Received ${colors.length} dominant colors`),
+      subscribeToPalette(() =>
+        setMessage(`Received ${getPalette().length} dominant colors`),
       ),
     [],
   );

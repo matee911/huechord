@@ -7,7 +7,9 @@ import {
 } from "../bridge/messages";
 import type { DominantColor } from "../algorithms/types";
 
-export type BridgeSink = (message: BridgeMessage) => void;
+// The real sink is a Comlink call into the WebView, so it answers with a
+// promise and reports a torn-down panel by rejecting it, not by throwing.
+export type BridgeSink = (message: BridgeMessage) => void | Promise<unknown>;
 
 let sink: BridgeSink | undefined;
 let webviewReady = false;
@@ -18,14 +20,21 @@ let webviewReady = false;
 // the user made another edit.
 let pending: PaletteMessage | undefined;
 
+const reportFailedSend = (error: Error): void => {
+  // A closing panel can tear the WebView down between the ready handshake and
+  // this call. That is a dead message, not a dead pipeline.
+  logger.error("Failed to send the palette to the WebView", error);
+};
+
 const send = (message: PaletteMessage): void => {
   if (!sink) return;
   try {
-    sink(message);
+    // Both failure shapes have to be caught: a synchronous throw from the
+    // wiring, and a rejection from the call that crossed into the WebView.
+    // An unhandled rejection here surfaces with no panel-side trace at all.
+    Promise.resolve(sink(message)).catch(reportFailedSend);
   } catch (error) {
-    // A closing panel can tear the WebView down between the ready handshake
-    // and this call. That is a dead message, not a dead pipeline.
-    logger.error("Failed to send the palette to the WebView", error as Error);
+    reportFailedSend(error as Error);
   }
 };
 

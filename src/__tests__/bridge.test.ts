@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   BRIDGE_VERSION,
+  MAX_PALETTE_COLORS,
   paletteMessage,
   readyMessage,
   parseBridgeMessage,
   type BridgeMessage,
 } from "../bridge/messages";
 import { setLogger, type Logger } from "../lib/logger";
+import { MAX_DOMINANT_COLORS } from "../algorithms/color-extraction";
 import type { DominantColor } from "../algorithms/types";
 
 const aColor = (h: number, weight: number): DominantColor => ({
@@ -66,6 +68,30 @@ describe("bridge message contract", () => {
 
   it("accepts a ready message it produced itself", () => {
     expect(parseBridgeMessage(readyMessage())).toEqual(readyMessage());
+  });
+
+  it("leaves room for every palette the extractor can produce", () => {
+    // The two numbers live apart on purpose -- the WebView must not import the
+    // quantizer to learn a limit -- so something has to hold them together.
+    expect(MAX_PALETTE_COLORS).toBeGreaterThanOrEqual(MAX_DOMINANT_COLORS);
+  });
+
+  it("accepts a palette as long as the contract allows", () => {
+    const colors = Array.from({ length: MAX_PALETTE_COLORS }, () =>
+      aColor(0, 1 / MAX_PALETTE_COLORS),
+    );
+
+    expect(parseBridgeMessage(paletteMessage(colors, 1))).not.toBeNull();
+  });
+
+  it("keeps the contents of a rejected message out of the log", () => {
+    // A rejected payload carries colors read out of the user's image and has
+    // no size limit -- the reason for dropping it is the useful part.
+    parseBridgeMessage({ type: "palette", version: BRIDGE_VERSION });
+
+    const [, data] = (logger.warn as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string, Record<string, unknown>];
+    expect(data).toEqual({ received: "object" });
   });
 });
 

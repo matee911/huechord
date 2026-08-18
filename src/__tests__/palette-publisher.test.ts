@@ -122,6 +122,18 @@ describe("palette publisher", () => {
     expect(logger.error).toHaveBeenCalled();
   });
 
+  it("survives a WebView that rejects the call instead of throwing", async () => {
+    // Comlink answers with a promise, so a torn-down panel arrives as a
+    // rejection. Caught synchronously it would escape as an unhandled one.
+    const sink = vi.fn(() => Promise.reject(new Error("webview is gone")));
+    connectWebview(sink);
+    handleWebviewMessage(readyMessage());
+
+    publishPalette([aColor(10)], 1);
+
+    await vi.waitFor(() => expect(logger.error).toHaveBeenCalled());
+  });
+
   it("stops sending after the panel disconnects", () => {
     const sink = vi.fn();
     connectWebview(sink);

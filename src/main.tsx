@@ -26,10 +26,10 @@ export const App = () => {
       logger.info("WebView bridge established", {
         panels: apis.length,
       });
-      // Single-panel plugin: the first WebView is the one that draws.
+      // Single-panel plugin: the host resolves only once every page it was
+      // asked for has loaded, and it was asked for one.
       const [panel] = apis;
-      if (panel)
-        connectWebview((message) => panel.receiveBridgeMessage(message));
+      connectWebview((message) => panel.receiveBridgeMessage(message));
     });
     return () => disconnectWebview();
   }, [webviewUI]);

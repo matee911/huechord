@@ -20,7 +20,7 @@
   "include": [
     "./src",
     "../src/bridge",
-    "../src/lib",
+    "../src/lib/logger.ts",
     "../src/algorithms/types.ts"
   ]
 }

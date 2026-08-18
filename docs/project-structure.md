@@ -25,26 +25,27 @@ colors/
 │   │   ├── imaging.ts            # getPixels wrapper, executeAsModal, dispose
 │   │   ├── events.ts             # PS event listener setup & management
 │   │   ├── pixel-pipeline.ts     # Wires document changes to debounced acquisition
-│   │   └── bridge.ts             # postMessage bridge to WebView
+│   │   └── palette-publisher.ts  # UXP side of the bridge: handshake, buffer, send
+│   ├── bridge/
+│   │   └── messages.ts           # Wire contract, imported by BOTH contexts
 │   ├── algorithms/
 │   │   ├── color-extraction.ts   # MMCQ / K-Means dominant color extraction
 │   │   ├── harmony.ts            # Harmony detection & scoring
 │   │   ├── color-convert.ts      # RGB <-> HSL <-> HSV conversions
 │   │   └── types.ts              # Shared types (Color, Harmony, Palette)
-│   ├── webview/
-│   │   ├── index.html            # WebView HTML entrypoint
-│   │   ├── app.ts                # WebView main, message handler
-│   │   ├── components/
-│   │   │   ├── ColorWheel.ts     # SVG/Canvas color wheel renderer
-│   │   │   ├── PaletteBar.ts     # Dominant color palette display
-│   │   │   ├── HarmonyOverlay.ts # Harmony template overlay on wheel
-│   │   │   └── ScoreLabel.ts     # Harmony match score/label
-│   │   └── styles/
-│   │       └── main.css          # WebView styles (dark theme matching PS)
 │   └── __tests__/
 │       ├── color-extraction.test.ts
 │       ├── harmony.test.ts
 │       └── color-convert.test.ts
+├── webview-ui/                   # WebView bundle — its own Vite project
+│   └── src/
+│       ├── main-webview.tsx      # WebView entrypoint
+│       ├── palette-store.ts      # Validates inbound messages, holds the palette
+│       ├── wheel-geometry.ts     # Dot placement & swatch widths (pure)
+│       ├── panel.scss            # Panel styles, driven by the host color scheme
+│       └── components/
+│           ├── color-wheel.tsx   # SVG wheel with one dot per dominant color
+│           └── palette-bar.tsx   # Weighted swatch strip
 ├── uxp.config.ts                 # Bolt UXP config (manifest, hosts, panels)
 ├── vite.config.ts                # Vite config (dual build: UXP + WebView)
 ├── package.json
@@ -62,13 +63,19 @@ graph LR
         A[algorithms/]
     end
 
+    subgraph Shared
+        B[bridge/]
+    end
+
     subgraph WebView Context
-        W[webview/]
+        W[webview-ui/]
     end
 
     M --> U
     M --> A
-    A -->|postMessage| W
+    U --> B
+    W --> B
+    U -->|postMessage| W
 ```
 
 ### UXP Context (`src/main.ts`, `src/uxp/`, `src/algorithms/`)
@@ -78,12 +85,18 @@ graph LR
 - Handles pixel acquisition, color extraction, harmony scoring
 - No DOM rendering (besides minimal panel shell)
 
-### WebView Context (`src/webview/`)
+### WebView Context (`webview-ui/`)
 
 - Runs in embedded browser (Edge/Safari)
 - Full HTML5 Canvas, SVG, CSS
 - Receives processed data via `postMessage`
 - Purely presentational — no PS API access
+
+### Bridge (`src/bridge/`)
+
+- The wire contract only: message shapes, schema version, validation
+- Imported by **both** contexts, so sender and receiver cannot drift apart
+- Free of Photoshop APIs, React and the DOM
 
 ### Algorithms (`src/algorithms/`)
 
@@ -96,7 +109,7 @@ graph LR
 Vite produces two bundles:
 
 1. **UXP bundle** -> `plugin/index.js` (loaded by manifest.json)
-2. **WebView bundle** -> `plugin/webview/index.html` + assets (loaded by WebView element)
+2. **WebView bundle** -> `public/webview-ui/*.html` (single-file, loaded by the WebView element)
 
 ## Naming Conventions
 
