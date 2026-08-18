@@ -26,10 +26,19 @@ export type HarmonyType =
   | "analogous"
   | "triadic"
   | "split-complementary"
+  | "tetradic"
+  | "square"
   | "monochromatic";
 
-export interface HarmonyResult {
+/**
+ * A harmony a palette actually shows. There is no score: a photograph either
+ * forms one of these or it does not, and the colors that form it are named so
+ * the panel can draw the shape through the dots it already has.
+ */
+export interface HarmonyMatch {
   type: HarmonyType;
-  score: number; // 0-100 (percent match)
-  idealAngles: number[]; // ideal hue positions on wheel
+  // Positions in the palette, in the order the shape connects them.
+  colorIndices: number[];
+  // How far the worst of them sits from its ideal position, in degrees.
+  maxDeviation: number;
 }

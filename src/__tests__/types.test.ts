@@ -3,7 +3,7 @@ import type {
   RGBColor,
   HSLColor,
   Palette,
-  HarmonyResult,
+  HarmonyMatch,
 } from "../algorithms/types";
 
 describe("types", () => {
@@ -34,13 +34,13 @@ describe("types", () => {
     expect(palette.colors[0].weight).toBe(0.6);
   });
 
-  it("HarmonyResult has expected shape", () => {
-    const result: HarmonyResult = {
+  it("HarmonyMatch has expected shape", () => {
+    const match: HarmonyMatch = {
       type: "triadic",
-      score: 85,
-      idealAngles: [0, 120, 240],
+      colorIndices: [0, 2, 3],
+      maxDeviation: 7,
     };
-    expect(result.type).toBe("triadic");
-    expect(result.idealAngles).toHaveLength(3);
+    expect(match.type).toBe("triadic");
+    expect(match.colorIndices).toHaveLength(3);
   });
 });
