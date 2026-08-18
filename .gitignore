@@ -38,3 +38,5 @@ scripts/mac-sign.sh
 public/webview-ui/*
 
 .demos
+# Visual proofs rendered during review — never committed
+docs/proofs/

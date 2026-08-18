@@ -138,33 +138,31 @@ graph LR
 
 ## Step 4: Harmony Detection & Overlay
 
-**Goal**: Core value — user sees which color harmony their grading is closest to and how far off they are.
+**Goal**: Core value — the user sees whether the frame shows a color harmony and which colors form it.
+
+Superseded in detail by [ADR-008](adr/008-harmony-detection.md) and [docs/design-harmony-detection.md](design-harmony-detection.md): this step originally called for a match percentage, and that turned out to be the wrong answer. A number in the middle of the range reads as a weak match when it means no match. The answer is the harmony or nothing.
 
 ### Scope
 
 - `src/algorithms/harmony.ts`:
-  - Harmony templates: complementary, analogous, triadic, split-complementary (4 is enough for MVP)
-  - Scoring: angular distance between dominant hue positions and ideal harmony positions
-  - Returns closest harmony + match percentage
+  - Geometric templates: complementary, split-complementary, triadic, tetradic, square
+  - Arc-decided: monochromatic and analogous, at any color count and spacing
+  - Returns the harmony and which colors form it, or `null`
 - WebView:
-  - `HarmonyOverlay.ts` — renders ideal harmony positions as semi-transparent shapes/lines on the wheel
-  - `ScoreLabel.ts` — displays harmony name + score (e.g., "Triadic — 78%")
-- Bridge extended: palette + harmony result sent to WebView
+  - `harmony-overlay.tsx` — draws the shape through the dots that form the harmony
+  - `harmony-label.tsx` — names the harmony, or says there is none
+- Bridge extended: palette + harmony in one atomic message
 
 ### Tests
 
-- `harmony.test.ts`: pure red + pure cyan (180° apart) → complementary ~100%
-- `harmony.test.ts`: three colors at 0°, 120°, 240° → triadic ~100%
-- `harmony.test.ts`: analogous cluster at 30°, 45°, 60° → analogous high score
-- `harmony.test.ts`: random scattered hues → low scores across all harmonies
-- `harmony.test.ts`: single dominant color → graceful result (monochromatic or N/A)
+`src/__tests__/harmony.feature` + `harmony.feature.test.ts` (BDD per CLAUDE.md), one scenario per row of the decision table in the design document — including the 359°/1° wraparound, a fully desaturated palette, a trace color that neither completes nor breaks a harmony, and order independence.
 
 ### Definition of Done
 
-- [ ] Closest harmony name + percentage displayed in panel
-- [ ] Harmony overlay visible on color wheel
-- [ ] Score updates live with edits
-- [ ] Harmony scoring <5ms (logged)
+- [ ] Harmony name displayed in the panel, or that there is none
+- [ ] The shape drawn through the dots that form it on the color wheel
+- [ ] Both update live with edits
+- [ ] Harmony detection <5ms (logged)
 - [ ] All unit tests pass
 - [ ] `yarn test` passes
 
@@ -177,7 +175,7 @@ graph LR
 ### Scope
 
 - Filter near-black (L<5%) and near-white (L>95%) from dominant colors before harmony analysis
-- Saturation weighting: desaturated colors (S<10%) de-prioritized in harmony scoring
+- Saturation weighting: refine how desaturated colors are excluded from harmony detection
 - Fallback polling: re-analyze every 5s even without events (catches missed events)
 - Graceful states:
   - No document open → "Open a document to analyze"
@@ -191,8 +189,8 @@ graph LR
 - `color-extraction.test.ts`: all-black image → empty/minimal palette
 - `color-extraction.test.ts`: all-white image → empty/minimal palette
 - `color-extraction.test.ts`: grayscale image → low-saturation results
-- `harmony.test.ts`: empty palette → no crash, neutral result
-- `harmony.test.ts`: single color palette → monochromatic or N/A
+- `harmony.feature`: empty palette → no crash, no harmony reported
+- `harmony.feature`: single color palette → monochromatic
 - `debounce.test.ts`: rapid fire → only last call executed
 
 ### Definition of Done
@@ -213,12 +211,10 @@ Not in scope now, but architecture supports these without major refactor:
 | Feature                                            | Effort | Enabled by                                                                                                   |
 | -------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
 | **Sentry integration**                             | Low    | `logger.ts` abstraction — swap implementation to `@sentry/browser` in WebView, forward UXP errors via bridge |
-| Top-3 harmonies ranked                             | Low    | `harmony.ts` already scores all — just expose sorted list                                                    |
-| "Nudge" suggestions ("shift hue +15° for triadic") | Medium | Harmony scoring knows the delta                                                                              |
+| "Nudge" suggestions ("shift hue +15° for triadic") | Medium | The match already carries how far off the worst color is                                                     |
 | Region of Interest (analyze selection only)        | Medium | `sourceBounds` param in `getPixels`                                                                          |
 | Per-layer analysis                                 | Medium | `layerID` param in `getPixels`                                                                               |
 | Palette export (ASE, JSON, CSS)                    | Low    | Palette data already structured                                                                              |
-| Tetradic + square harmonies                        | Low    | Add templates to `harmony.ts`                                                                                |
 | Configurable color count / sensitivity             | Low    | Parameterize MMCQ max colors                                                                                 |
 | Marketplace distribution                           | Medium | `.ccx` packaging, signing, notarization                                                                      |
 

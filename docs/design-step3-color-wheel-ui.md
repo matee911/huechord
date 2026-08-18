@@ -106,7 +106,7 @@ sequenceDiagram
 
     rect rgb(191, 224, 255)
     Note right of Pipe: ZMIANA: paleta szła tylko do loggera, teraz też do publishera
-    Pipe->>Pub: publishPalette(colors)
+    Pipe->>Pub: publishAnalysis(colors, harmony)
     Pub->>WV: palette (v1)
     WV->>WV: parseBridgeMessage()
     WV->>UI: DominantColor[]

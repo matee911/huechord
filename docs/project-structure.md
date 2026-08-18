@@ -30,12 +30,13 @@ colors/
 │   │   └── messages.ts           # Wire contract, imported by BOTH contexts
 │   ├── algorithms/
 │   │   ├── color-extraction.ts   # MMCQ / K-Means dominant color extraction
-│   │   ├── harmony.ts            # Harmony detection & scoring
+│   │   ├── harmony.ts            # Harmony detection
 │   │   ├── color-convert.ts      # RGB <-> HSL <-> HSV conversions
-│   │   └── types.ts              # Shared types (Color, Harmony, Palette)
+│   │   └── types.ts              # Shared types (Color, DominantColor, HarmonyMatch)
 │   └── __tests__/
 │       ├── color-extraction.test.ts
-│       ├── harmony.test.ts
+│       ├── harmony.feature
+│       ├── harmony.feature.test.ts
 │       └── color-convert.test.ts
 ├── webview-ui/                   # WebView bundle — its own Vite project
 │   └── src/
@@ -83,7 +84,7 @@ graph LR
 
 - Runs in UXP runtime (not a browser)
 - Has access to Photoshop APIs (`require("photoshop")`)
-- Handles pixel acquisition, color extraction, harmony scoring
+- Handles pixel acquisition, color extraction, harmony detection
 - No DOM rendering (besides minimal panel shell)
 
 ### WebView Context (`webview-ui/`)
