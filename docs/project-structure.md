@@ -42,6 +42,7 @@ colors/
 │       ├── main-webview.tsx      # WebView entrypoint
 │       ├── palette-store.ts      # Validates inbound messages, holds the palette
 │       ├── wheel-geometry.ts     # Dot placement & swatch widths (pure)
+│       ├── render-budget.ts      # Reports render time against the 16ms budget
 │       ├── panel.scss            # Panel styles, driven by the host color scheme
 │       └── components/
 │           ├── color-wheel.tsx   # SVG wheel with one dot per dominant color

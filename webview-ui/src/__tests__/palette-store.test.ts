@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   getPalette,
+  getPaletteReceivedAt,
   receiveBridgeMessage,
   subscribeToPalette,
 } from "../palette-store";
@@ -67,5 +68,11 @@ describe("palette store", () => {
     receiveBridgeMessage(paletteMessage([aColor(10)], 1));
 
     expect(getPalette()).toBe(getPalette());
+  });
+
+  it("stamps when a palette arrived, so the render can be timed", () => {
+    receiveBridgeMessage(paletteMessage([aColor(10)], 1));
+
+    expect(getPaletteReceivedAt()).toBeGreaterThan(0);
   });
 });

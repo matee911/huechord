@@ -1,35 +1,37 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useSyncExternalStore } from "react";
 import * as webviewAPI from "./webview-api";
 import { initWebview } from "./webview-setup";
-import { getPalette, subscribeToPalette } from "./palette-store";
+import {
+  getPalette,
+  getPaletteReceivedAt,
+  subscribeToPalette,
+} from "./palette-store";
+import { reportRenderTime } from "./render-budget";
+import { ColorWheel } from "./components/color-wheel";
+import { PaletteBar } from "./components/palette-bar";
+
+// The handshake and the Comlink wiring belong to the document, not to a
+// render: App re-renders on every palette, and repeating `expose` plus a
+// fresh `ready` per edit would re-announce a WebView that never went away.
+initWebview(webviewAPI);
 
 export const App = () => {
-  initWebview(webviewAPI);
-  const [message, setMessage] = useState("Connecting...");
+  const colors = useSyncExternalStore(subscribeToPalette, getPalette);
 
-  useEffect(
-    () =>
-      subscribeToPalette(() =>
-        setMessage(`Received ${getPalette().length} dominant colors`),
-      ),
-    [],
-  );
+  useEffect(() => {
+    const receivedAt = getPaletteReceivedAt();
+    if (receivedAt > 0)
+      reportRenderTime(performance.now() - receivedAt, colors.length);
+  }, [colors]);
 
   return (
-    <main
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-        color: "var(--uxp-host-text-color, #ccc)",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
-      <h2>{message}</h2>
-      <p style={{ opacity: 0.6 }}>
-        WebView context active — postMessage bridge OK
+    <main className="panel">
+      <ColorWheel colors={colors} />
+      <PaletteBar colors={colors} />
+      <p className="panel-status">
+        {colors.length > 0
+          ? `${colors.length} dominant colors`
+          : "Open a document and start editing"}
       </p>
     </main>
   );

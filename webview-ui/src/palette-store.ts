@@ -8,9 +8,14 @@ type Listener = () => void;
 // subscribe. Keeping it out of the components is what lets them stay purely
 // presentational (CLAUDE.md).
 let colors: DominantColor[] = [];
+// When the palette below arrived, so the panel can measure what it costs to
+// put it on screen rather than assume.
+let receivedAt = 0;
 const listeners = new Set<Listener>();
 
 export const getPalette = (): DominantColor[] => colors;
+
+export const getPaletteReceivedAt = (): number => receivedAt;
 
 export const subscribeToPalette = (listener: Listener): (() => void) => {
   listeners.add(listener);
@@ -30,5 +35,6 @@ export const receiveBridgeMessage = (raw: unknown): void => {
   if (!message || message.type !== "palette") return;
 
   colors = message.payload.colors;
+  receivedAt = performance.now();
   for (const listener of listeners) listener();
 };

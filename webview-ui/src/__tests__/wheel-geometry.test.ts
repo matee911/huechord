@@ -1,0 +1,105 @@
+import { describe, it, expect } from "vitest";
+import {
+  cssColor,
+  dotPosition,
+  dotRadius,
+  swatchWidths,
+} from "../wheel-geometry";
+import type { DominantColor } from "../../../src/algorithms/types";
+
+const color = (weight: number): DominantColor => ({
+  rgb: { r: 1, g: 2, b: 3 },
+  hsl: { h: 0, s: 0, l: 0 },
+  weight,
+});
+
+const closeTo = (point: { x: number; y: number }) => ({
+  x: expect.closeTo(point.x, 6) as number,
+  y: expect.closeTo(point.y, 6) as number,
+});
+
+describe("dotPosition", () => {
+  it("puts hue 0 straight up", () => {
+    expect(dotPosition(0, 100, 100)).toEqual(closeTo({ x: 0, y: -100 }));
+  });
+
+  it("runs hue clockwise", () => {
+    expect(dotPosition(90, 100, 100)).toEqual(closeTo({ x: 100, y: 0 }));
+    expect(dotPosition(180, 100, 100)).toEqual(closeTo({ x: 0, y: 100 }));
+    expect(dotPosition(270, 100, 100)).toEqual(closeTo({ x: -100, y: 0 }));
+  });
+
+  it("wraps a full turn back onto itself", () => {
+    expect(dotPosition(360, 100, 100)).toEqual(
+      closeTo(dotPosition(0, 100, 100)),
+    );
+  });
+
+  it("puts a fully desaturated color in the center whatever its hue", () => {
+    expect(dotPosition(210, 0, 100)).toEqual(closeTo({ x: 0, y: 0 }));
+  });
+
+  it("scales distance with saturation", () => {
+    expect(dotPosition(0, 50, 100)).toEqual(closeTo({ x: 0, y: -50 }));
+  });
+
+  it("keeps an out-of-range saturation inside the wheel", () => {
+    // The extractor produces 0-100, but a dot escaping the rim would be a
+    // rendering artifact nobody could explain from the image.
+    expect(dotPosition(0, 140, 100)).toEqual(closeTo({ x: 0, y: -100 }));
+    expect(dotPosition(0, -20, 100)).toEqual(closeTo({ x: 0, y: 0 }));
+  });
+});
+
+describe("dotRadius", () => {
+  it("gives a trace color the minimum size", () => {
+    expect(dotRadius(0, 3, 12)).toBe(3);
+  });
+
+  it("gives a color covering the whole image the maximum size", () => {
+    expect(dotRadius(1, 3, 12)).toBe(12);
+  });
+
+  it("scales area rather than radius with weight", () => {
+    // Half the image should read as half the ink: area doubles when weight
+    // doubles, which means the radius grows by sqrt(2), not by 2.
+    const area = (weight: number) => Math.PI * dotRadius(weight, 0, 10) ** 2;
+
+    expect(area(0.5) / area(0.25)).toBeCloseTo(2, 6);
+  });
+
+  it("clamps a weight outside 0-1", () => {
+    expect(dotRadius(4, 3, 12)).toBe(12);
+    expect(dotRadius(-1, 3, 12)).toBe(3);
+  });
+});
+
+describe("swatchWidths", () => {
+  it("gives each color a share proportional to its weight", () => {
+    expect(swatchWidths([color(0.75), color(0.25)])).toEqual([75, 25]);
+  });
+
+  it("always fills the bar exactly", () => {
+    const widths = swatchWidths([color(0.2), color(0.3), color(0.1)]);
+
+    expect(widths.reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 6);
+  });
+
+  it("splits the bar evenly when every weight is zero", () => {
+    expect(swatchWidths([color(0), color(0)])).toEqual([50, 50]);
+  });
+
+  it("has nothing to divide for an empty palette", () => {
+    expect(swatchWidths([])).toEqual([]);
+  });
+});
+
+describe("cssColor", () => {
+  it("renders channels as an rgb triple", () => {
+    expect(cssColor({ r: 12, g: 34, b: 56 })).toBe("rgb(12, 34, 56)");
+  });
+
+  it("rounds the quantizer's fractional averages", () => {
+    expect(cssColor({ r: 12.4, g: 34.5, b: 56.6 })).toBe("rgb(12, 35, 57)");
+  });
+});

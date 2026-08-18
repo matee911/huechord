@@ -1,0 +1,84 @@
+// The panel's own colors come from the host, not from a palette guessed to
+// look like Photoshop: `updateColorScheme` writes the real UI colors of the
+// running app into these variables, and the fallbacks only cover the moment
+// before the first scheme arrives.
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  background: var(--uxp-host-background-color, #323232);
+  color: var(--uxp-host-text-color, #ffffff);
+}
+
+.wheel {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 1;
+}
+
+.wheel-face,
+.wheel-dots {
+  position: absolute;
+  inset: 0;
+}
+
+.wheel-face {
+  border-radius: 50%;
+  // Hue runs clockwise from red at the top, matching `dotPosition`; the white
+  // core is the desaturated center the dots move towards.
+  background:
+    radial-gradient(
+      circle closest-side,
+      rgba(255, 255, 255, 0.92),
+      rgba(255, 255, 255, 0) 78%
+    ),
+    conic-gradient(
+      hsl(0, 90%, 50%),
+      hsl(60, 90%, 50%),
+      hsl(120, 90%, 50%),
+      hsl(180, 90%, 50%),
+      hsl(240, 90%, 50%),
+      hsl(300, 90%, 50%),
+      hsl(360, 90%, 50%)
+    );
+  box-shadow: inset 0 0 0 1px var(--uxp-host-border-color, #292929);
+}
+
+.wheel-dot {
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 2;
+  // Only the geometry attributes change between updates, so the browser
+  // interpolates a move instead of the palette jumping to its new shape.
+  transition:
+    cx 180ms ease-out,
+    cy 180ms ease-out,
+    r 180ms ease-out,
+    fill 180ms ease-out;
+}
+
+.palette-bar {
+  display: flex;
+  width: 100%;
+  max-width: 260px;
+  height: 28px;
+  border: 1px solid var(--uxp-host-border-color, #292929);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.palette-swatch {
+  height: 100%;
+  transition: width 180ms ease-out;
+}
+
+.panel-status {
+  margin: 0;
+  font-size: 11px;
+  color: var(--uxp-host-text-color-secondary, #9b9b9b);
+}
