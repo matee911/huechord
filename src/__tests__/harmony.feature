@@ -179,3 +179,20 @@ Feature: Harmony detection
     When harmony detection runs
     Then the harmony is triadic
     And the frame is not merely close to it
+
+  Scenario: Both colors of a stretched pair are out of place
+    Given dominant colors at hues 0 and 152
+    When harmony detection runs
+    Then the harmony is complementary
+    And both colors are named as out of place
+
+  Scenario: Past the near tolerance nothing is claimed
+    Given dominant colors at hues 0 and 145
+    When harmony detection runs
+    Then no harmony is reported
+
+  Scenario: Which colors are out of place does not depend on their order
+    Given dominant colors at hues 0, 132 and 228
+    When harmony detection runs
+    And the same colors are detected in a different order
+    Then the same hues are named as out of place

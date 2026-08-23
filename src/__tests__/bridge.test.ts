@@ -427,7 +427,7 @@ describe("parseBridgeMessage rejects", () => {
   });
 
   it("accepts a harmony the frame only comes close to", () => {
-    const harmony = aHarmony({ outlierIndex: 1 });
+    const harmony = aHarmony({ outlierIndices: [1] });
 
     expect(
       parseBridgeMessage(
@@ -450,16 +450,18 @@ describe("parseBridgeMessage rejects", () => {
   // through. One outside it points the retoucher at a dot the shape does not
   // touch, which is worse than saying nothing.
   it.each([
-    ["an outlier outside the shape", { outlierIndex: 7 }],
-    ["a fractional outlier", { outlierIndex: 1.5 }],
-    ["no outlier at all", {}],
-    ["an outlier that is not a number", { outlierIndex: "1" }],
+    ["an outlier outside the shape", { outlierIndices: [7] }],
+    ["a fractional outlier", { outlierIndices: [1.5] }],
+    ["no outliers at all", { outlierIndices: [] }],
+    ["no outlier field", {}],
+    ["an outlier that is not a number", { outlierIndices: ["1"] }],
+    ["the same outlier twice", { outlierIndices: [1, 1] }],
   ])("rejects a near miss with %s", (_case, nearMiss) => {
     expect(
       parseBridgeMessage(
         analysisMessage(
           [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
-          aHarmony(nearMiss as { outlierIndex: number }),
+          aHarmony(nearMiss as { outlierIndices: number[] }),
           1,
         ),
       ),
@@ -480,4 +482,30 @@ describe("parseBridgeMessage rejects", () => {
       ),
     ).toBeNull();
   });
+
+  // ADR-009: monochromatic and analogous are span rules, not templates. An arc
+  // that is nearly narrow enough is just a wider arc, and there is no vertex to
+  // move a color towards -- so a sender claiming one describes a dashed shape
+  // the panel cannot draw.
+  it.each(["monochromatic", "analogous"])(
+    "refuses a near miss on a %s frame",
+    (type) => {
+      const colors = [aColor(0, 0.5), aColor(8, 0.5)];
+
+      expect(
+        parseBridgeMessage(
+          analysisMessage(
+            colors,
+            {
+              type: type as HarmonyMatch["type"],
+              colorIndices: [0, 1],
+              maxDeviation: 4,
+              nearMiss: { outlierIndices: [1] },
+            },
+            1,
+          ),
+        ),
+      ).toBeNull();
+    },
+  );
 });

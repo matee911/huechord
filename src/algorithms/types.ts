@@ -37,14 +37,17 @@ export interface HarmonyMatch {
   // How far the worst of them sits from its ideal position, in degrees.
   maxDeviation: number;
   // Null when the shape holds inside the ordinary tolerance. Otherwise the
-  // shape only holds loosely, and this says which color is furthest from where
-  // it wants to be -- the one whose movement would close it. One field rather
+  // shape only holds loosely, and this says which colors are furthest from
+  // where they want to be -- the ones whose movement would close it. One field
+  // rather
   // than a flag plus an index, so "close, but nothing is out of place" cannot
   // be written down. See ADR-009.
   nearMiss: NearMiss | null;
 }
 
 export interface NearMiss {
-  // A position in the palette, and one of `colorIndices`.
-  outlierIndex: number;
+  // Positions in the palette, all of them among `colorIndices`. Plural because
+  // two colors are often equally out of place -- always so in a two-armed
+  // shape, where moving either one closes it.
+  outlierIndices: number[];
 }

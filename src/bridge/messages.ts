@@ -147,17 +147,24 @@ const isDominantColor = (value: unknown): value is DominantColor =>
  * read straight into the geometry that draws the shape, so one out of range is
  * a vertex at `cx="undefined"` -- a shape that silently loses a corner.
  */
-// Either absent-and-null, or an object naming one of the shape's own colors.
+// Either absent-and-null, or an object naming colors the shape runs through.
 // Checked against `colorIndices` rather than against the palette: a near miss
-// points at the color to move, and one outside the shape is not that.
+// points at the colors to move, and one outside the shape is not that.
 const isNearMiss = (value: unknown, colorIndices: number[]): boolean => {
   if (value === null) return true;
   if (!isRecord(value)) return false;
-  const { outlierIndex } = value;
+  if (!Array.isArray(value.outlierIndices)) return false;
+
+  const outliers = Array.from(value.outlierIndices);
   return (
-    isFiniteNumber(outlierIndex) &&
-    Number.isInteger(outlierIndex) &&
-    colorIndices.includes(outlierIndex)
+    outliers.length > 0 &&
+    new Set(outliers).size === outliers.length &&
+    outliers.every(
+      (index) =>
+        isFiniteNumber(index) &&
+        Number.isInteger(index) &&
+        colorIndices.includes(index),
+    )
   );
 };
 
@@ -198,6 +205,13 @@ const isHarmony = (
     )
   )
     return false;
+
+  // Monochromatic and analogous are span rules rather than templates: an arc
+  // that is nearly narrow enough is just a wider arc, and there is no vertex
+  // to move a color towards. ADR-009 says they cannot be near misses, and a
+  // sender claiming otherwise describes a state the panel would draw as a
+  // dashed shape that does not exist.
+  if (expected === null && value.nearMiss !== null) return false;
 
   // Last, because it is checked against the indices above: a malformed shape
   // would otherwise be rejected for the wrong reason.

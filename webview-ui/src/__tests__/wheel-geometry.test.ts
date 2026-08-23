@@ -127,7 +127,7 @@ describe("harmonyLabel", () => {
         type: "triadic",
         colorIndices: [0, 1, 2],
         maxDeviation: 14,
-        nearMiss: { outlierIndex: 2 },
+        nearMiss: { outlierIndices: [2] },
       }),
     ).toBe("Close to triadic");
   });
@@ -138,7 +138,7 @@ describe("harmonyLabel", () => {
         type: "split-complementary",
         colorIndices: [0, 1, 2],
         maxDeviation: 14,
-        nearMiss: { outlierIndex: 1 },
+        nearMiss: { outlierIndices: [1] },
       }),
     ).toBe("Close to split complementary");
   });

@@ -41,12 +41,22 @@ const TEMPLATES: readonly (readonly [HarmonyType, number[]])[] = [
 export const TOLERANCE_DEGREES = 10;
 
 /**
- * How far a template may miss and still be worth mentioning: twice as far as a
- * harmony is allowed to. Deliberately expressed against the tolerance rather
- * than as its own number -- "twice what still counts" is a rule someone can
- * argue with, where a bare 20 is a number nobody can. See ADR-009.
+ * The narrowest gap between two arms of any template above. It bounds how far
+ * the pairing may reach, and through that how loose a near miss may be.
  */
-export const NEAR_TOLERANCE_DEGREES = TOLERANCE_DEGREES * 2;
+export const MIN_ARM_GAP = 60;
+
+/**
+ * How far a template may miss and still be worth mentioning: half again as far
+ * as a harmony is allowed to.
+ *
+ * Not twice, which is what it wants to be. The pairing cannot reach a color
+ * more than half an arm gap away without putting it in range of two arms, and
+ * a shape whose worst color is `d` off can have raw misses spanning `2d` -- so
+ * a limit above half of half the arm gap is a promise the search cannot keep,
+ * and the extra band would exist in the constant and nowhere else. See ADR-009.
+ */
+export const NEAR_TOLERANCE_DEGREES = MIN_ARM_GAP / 4;
 
 /**
  * The share of the image a color needs before it can take part. Without it a
@@ -131,23 +141,32 @@ const candidates = (colors: DominantColor[]): Candidate[] =>
  * half the spread between them. Anchoring an arm on a color instead would mean
  * a palette nudged by a degree loses a harmony that a worse-fitting one keeps.
  */
-// The narrowest gap between two arms of any template here. It bounds how wide
-// the pairing may reach: past half of it, one color would be in range of two
-// arms and which one claimed it would come down to iteration order.
-const MIN_ARM_GAP = 60;
-
 // How far from a color an arm may sit while the pairing is being worked out.
 // Twice the limit in force, because the placement that finally counts can be a
-// limit away from any one color.
+// limit away from any one color. Never past half an arm gap, or one color
+// would be in range of two arms and which one claimed it would come down to
+// iteration order -- which is why the near tolerance is set where it is.
 const searchWindow = (limit: number): number =>
   Math.min(limit * 2, MIN_ARM_GAP / 2);
 
 interface TemplateMatch {
   colorIndices: number[];
   maxDeviation: number;
-  /** The color furthest from where the template wants it. */
-  outlierIndex: number;
+  /** The colors furthest from where the template wants them. */
+  outlierIndices: number[];
 }
+
+// The true median, averaged across the two middle values when there are an
+// even number of them. Taking one of the two instead would put the median *on*
+// a color, and a shape where both colors are equally out of place -- every
+// two-armed one -- would look as though only the other were.
+const middleOf = (values: number[]): number => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const half = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[half]
+    : (sorted[half - 1] + sorted[half]) / 2;
+};
 
 const matchTemplate = (
   pool: Candidate[],
@@ -194,19 +213,18 @@ const matchTemplate = (
     // the same distance from the midpoint and the odd one out disappears. The
     // median sits on the colors that agree, which is what the stray one is
     // stray from.
-    const median = [...misses].sort((a, b) => a - b)[
-      Math.floor(misses.length / 2)
-    ];
-    const worst = misses.reduce(
-      (furthest, miss, at) =>
-        Math.abs(miss - median) > Math.abs(misses[furthest] - median)
-          ? at
-          : furthest,
-      0,
-    );
+    const median = middleOf(misses);
+    const strays = misses.map((miss) => Math.abs(miss - median));
+    const worst = Math.max(...strays);
+
+    // Every color that far out, not the first one found to be. Two colors can
+    // be equally out of place -- always, in a two-armed shape, where moving
+    // either closes it -- and picking one of them would make the answer depend
+    // on the order the extractor happened to emit the palette in.
+    const outlierIndices = colorIndices.filter((_, at) => strays[at] === worst);
 
     if (!best || maxDeviation < best.maxDeviation)
-      best = { colorIndices, maxDeviation, outlierIndex: colorIndices[worst] };
+      best = { colorIndices, maxDeviation, outlierIndices };
   }
 
   return best;
@@ -313,11 +331,11 @@ const bestTemplate = (
     const match = matchTemplate(pool, offsets, limit);
     if (!match) continue;
 
-    const { outlierIndex, ...shape } = match;
+    const { outlierIndices, ...shape } = match;
     const candidate: HarmonyMatch = {
       type,
       ...shape,
-      nearMiss: loose ? { outlierIndex } : null,
+      nearMiss: loose ? { outlierIndices } : null,
     };
     if (!best || candidate.maxDeviation < best.maxDeviation) best = candidate;
   }

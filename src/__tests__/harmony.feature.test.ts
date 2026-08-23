@@ -461,7 +461,7 @@ describeFeature(feature, ({ Scenario }) => {
       expect(harmony?.nearMiss).not.toBeNull();
     });
     And("the color at position 2 is named as the one out of place", () => {
-      expect(harmony?.nearMiss?.outlierIndex).toBe(2);
+      expect(harmony?.nearMiss?.outlierIndices).toEqual([2]);
     });
   });
 
@@ -488,6 +488,64 @@ describeFeature(feature, ({ Scenario }) => {
       });
       And("the frame is not merely close to it", () => {
         expect(harmony?.nearMiss).toBeNull();
+      });
+    },
+  );
+
+  // In a two-armed shape both colors are always equally displaced and moving
+  // either one closes it. Naming one would make the answer depend on the order
+  // the extractor emitted the palette in.
+  Scenario(
+    "Both colors of a stretched pair are out of place",
+    ({ Given, When, Then, And }) => {
+      Given("dominant colors at hues 0 and 152", givenHues([0, 152]));
+      When("harmony detection runs", detect);
+      Then("the harmony is complementary", () => {
+        expect(harmony?.type).toBe("complementary");
+      });
+      And("both colors are named as out of place", () => {
+        expect(harmony?.nearMiss?.outlierIndices).toEqual([0, 1]);
+      });
+    },
+  );
+
+  // The outer edge of the near-miss band, which the search window and the
+  // tolerance are deliberately set to agree on.
+  Scenario(
+    "Past the near tolerance nothing is claimed",
+    ({ Given, When, Then }) => {
+      Given("dominant colors at hues 0 and 145", givenHues([0, 145]));
+      When("harmony detection runs", detect);
+      Then("no harmony is reported", () => {
+        expect(harmony).toBeNull();
+      });
+    },
+  );
+
+  // The extractor emits the palette heaviest-first, and two colors of equal
+  // weight can swap between frames. Which dot the panel rings must not.
+  Scenario(
+    "Which colors are out of place does not depend on their order",
+    ({ Given, When, And, Then }) => {
+      let firstHues: number[] = [];
+
+      Given("dominant colors at hues 0, 132 and 228", givenHues([0, 132, 228]));
+      When("harmony detection runs", () => {
+        detect();
+        firstHues = (harmony?.nearMiss?.outlierIndices ?? [])
+          .map((index) => palette[index].hsl.h)
+          .sort((a, b) => a - b);
+      });
+      And("the same colors are detected in a different order", () => {
+        palette = paletteOf([228, 0, 132]);
+        detect();
+      });
+      Then("the same hues are named as out of place", () => {
+        const hues = (harmony?.nearMiss?.outlierIndices ?? [])
+          .map((index) => palette[index].hsl.h)
+          .sort((a, b) => a - b);
+        expect(hues).toEqual(firstHues);
+        expect(hues.length).toBeGreaterThan(0);
       });
     },
   );

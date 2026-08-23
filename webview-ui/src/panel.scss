@@ -104,11 +104,17 @@ $reserved-height: $panel-padding * 2 + $row-gap * 2 + $palette-bar-height +
 
 // The color the shape is waiting on. A ring around it rather than a change to
 // the dot, so the color it reports stays exactly what it is.
+//
+// Wider than the dot's own outline and drawn under the fill, so it reads as a
+// ring on both host themes: under a light one the text color is dark, and at
+// the same width the dash pattern would be the only thing left telling this
+// apart from every ordinary dot.
 .wheel-dot.is-out-of-place {
   stroke: var(--uxp-host-text-color, #ffffff);
   stroke-opacity: 0.9;
-  stroke-width: 2;
+  stroke-width: 4;
   stroke-dasharray: 4 3;
+  paint-order: stroke;
 }
 
 .harmony-shape-shadow {

@@ -19,14 +19,20 @@ const WHEEL_RADIUS = VIEWPORT_RADIUS - MAX_DOT_RADIUS;
 // Spoken to a screen-reader user, who gets none of the dashes and marks the
 // sighted panel uses to say the same thing.
 const wheelLabel = (
-  colorCount: number,
+  colors: DominantColor[],
   harmony: HarmonyMatch | null,
 ): string => {
-  const wheel = `Color wheel with ${colorCount} dominant colors`;
+  const wheel = `Color wheel with ${colors.length} dominant colors`;
   if (!harmony) return wheel;
-  return harmony.nearMiss
-    ? `${wheel}, close to a ${harmony.type} harmony`
-    : `${wheel}, forming a ${harmony.type} harmony`;
+  if (!harmony.nearMiss) return `${wheel}, forming a ${harmony.type} harmony`;
+
+  // The hues are spoken, because the dashed ring that says the same thing to a
+  // sighted user says nothing at all to a screen reader -- and which color to
+  // move is the actionable half of "you are close".
+  const hues = harmony.nearMiss.outlierIndices
+    .map((index) => Math.round(colors[index].hsl.h))
+    .join(" and ");
+  return `${wheel}, close to a ${harmony.type} harmony; out of place at hue ${hues}`;
 };
 
 export const ColorWheel = ({
@@ -45,15 +51,17 @@ export const ColorWheel = ({
       className="wheel-dots"
       viewBox={`${-VIEWPORT_RADIUS} ${-VIEWPORT_RADIUS} ${VIEWPORT_RADIUS * 2} ${VIEWPORT_RADIUS * 2}`}
       role="img"
-      aria-label={wheelLabel(colors.length, harmony)}
+      aria-label={wheelLabel(colors, harmony)}
     >
       <HarmonyOverlay colors={colors} harmony={harmony} radius={WHEEL_RADIUS} />
       {colors.map((color, index) => {
         const { x, y } = dotPosition(color.hsl.h, color.hsl.s, WHEEL_RADIUS);
-        // The one color holding a near-miss shape open. Marked rather than
-        // named in prose: the retoucher is looking at the wheel, and "the one
-        // at 268 degrees" is not something anyone reads off a wheel.
-        const outOfPlace = harmony?.nearMiss?.outlierIndex === index;
+        // A color holding a near-miss shape open. Marked on the wheel for
+        // whoever is looking at it, and named by hue in the label below for
+        // whoever is not.
+        const outOfPlace = Boolean(
+          harmony?.nearMiss?.outlierIndices.includes(index),
+        );
         return (
           <circle
             // Position and color both move every update, so neither can
