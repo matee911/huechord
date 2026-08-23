@@ -92,7 +92,8 @@ graph LR
 - Runs in embedded browser (Edge/Safari)
 - Full HTML5 Canvas, SVG, CSS
 - Receives processed data via `postMessage`
-- Purely presentational — no PS API access
+- Presentational — no PS API access. The one thing it reports back is whether the panel is on
+  screen; see [panel-visibility.md](panel-visibility.md)
 
 ### Bridge (`src/bridge/`)
 

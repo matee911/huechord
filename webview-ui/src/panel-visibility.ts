@@ -9,25 +9,16 @@ import { visibilityMessage } from "../../src/bridge/messages";
  * flips `visibilityState` to "hidden".
  */
 
-// Only the parts of `document` this needs, so the reporting can be tested in
-// the Node environment the rest of the suite runs in.
-export interface VisibilityPage {
-  visibilityState: string;
-  addEventListener: (type: "visibilitychange", listener: () => void) => void;
-  removeEventListener: (type: "visibilitychange", listener: () => void) => void;
-}
-
 export const reportPanelVisibility = (
   send: (message: unknown) => void,
-  page: VisibilityPage = document,
 ): (() => void) => {
   // Sent once up front, not only on change: the host has no way to ask, and
   // the first change may be the panel closing an hour from now.
   const report = () =>
-    send(visibilityMessage(page.visibilityState !== "hidden"));
+    send(visibilityMessage(document.visibilityState !== "hidden"));
 
   report();
-  page.addEventListener("visibilitychange", report);
+  document.addEventListener("visibilitychange", report);
 
-  return () => page.removeEventListener("visibilitychange", report);
+  return () => document.removeEventListener("visibilitychange", report);
 };

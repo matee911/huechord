@@ -78,7 +78,21 @@ describe("the WebView inbox", () => {
 
     expect(() => handleWebviewMessage(visibilityMessage(false))).not.toThrow();
     expect(loggerError).toHaveBeenCalledWith(
-      "Failed to apply the panel's visibility",
+      "Failed to handle a visibility message from the WebView",
+      expect.any(Error),
+    );
+  });
+
+  // The same guarantee for the other branch: the publisher reaches into a
+  // Comlink call of its own, and a throw there has the same wrong path home.
+  it("keeps a throwing handshake from escaping across the bridge", () => {
+    markWebviewReady.mockImplementation(() => {
+      throw new Error("sink blew up");
+    });
+
+    expect(() => handleWebviewMessage(readyMessage())).not.toThrow();
+    expect(loggerError).toHaveBeenCalledWith(
+      "Failed to handle a ready message from the WebView",
       expect.any(Error),
     );
   });

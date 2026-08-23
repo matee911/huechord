@@ -64,16 +64,16 @@ export const initWebview = (
   // The handshake. Until this lands, the UXP side holds the palette back —
   // anything it sent before this document registered its Comlink listener
   // would be dropped with no retry, leaving the panel blank until the next edit.
-  // After the handshake, so the host is already listening when the first state
-  // arrives, and the page is the only thing that can tell it the panel closed.
+  api.handleWebviewMessage(readyMessage()).catch((error: Error) => {
+    logger.error("Failed to announce the WebView as ready", error);
+  });
+
+  // After the handshake, so the two arrive in the order the host reads them in:
+  // the page exists, and then it says whether anyone can see it.
   reportPanelVisibility((message) => {
     void api.handleWebviewMessage(message).catch((error: Error) => {
       logger.error("Failed to report the panel's visibility", error);
     });
-  });
-
-  api.handleWebviewMessage(readyMessage()).catch((error: Error) => {
-    logger.error("Failed to announce the WebView as ready", error);
   });
   return { api, page };
 };

@@ -90,6 +90,18 @@ sequenceDiagram
 Repeats are ordinary, not defensive: `visibilitychange` can fire for reasons other than the panel
 opening and closing, and the WebView also sends its state once at handshake.
 
+## Known cost: the first palette after reopening
+
+`startPixelPipeline` arms the idle poll rather than reading straight away, so a panel reopened onto
+an untouched document shows the palette it had before it was hidden for up to one poll interval. Any
+edit in the meantime goes through the ordinary debounce, so this is only visible to someone who
+opens the panel and then does nothing.
+
+Reading once on start would remove it, and it is deliberately not in this change: it alters when
+every pipeline takes its first look, not just a reopened one, and it lands on seven existing tests
+that assert nothing is read until something happens. That is its own change with its own argument to
+make.
+
 ## Performance and security
 
 The change removes work; it adds one boolean message per visibility transition. No new host API,

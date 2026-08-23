@@ -18,7 +18,9 @@ Real-time color harmony analysis plugin for Adobe Photoshop. Extracts dominant c
 Two execution contexts communicating via `postMessage`:
 
 1. **UXP Context** — Photoshop API access, pixel acquisition (`imaging.getPixels`), color extraction (MMCQ), harmony scoring
-2. **WebView Context** — Color wheel rendering, palette display, harmony overlay. Purely presentational.
+2. **WebView Context** — Color wheel rendering, palette display, harmony overlay. Presentational,
+   with one exception: it reports whether the panel is on screen, because nothing in the UXP
+   context can tell. See [docs/panel-visibility.md](docs/panel-visibility.md).
 
 Algorithms in `src/algorithms/` are pure functions with no PS dependencies — fully testable in Node.js.
 
@@ -43,6 +45,7 @@ Algorithms in `src/algorithms/` are pure functions with no PS dependencies — f
 - [docs/project-structure.md](docs/project-structure.md) — Directory layout
 - [docs/implementation-plan.md](docs/implementation-plan.md) — MVP step-by-step plan
 - [docs/manual-testing-in-photoshop.md](docs/manual-testing-in-photoshop.md) — Driving PS/UDT from a terminal
+- [docs/panel-visibility.md](docs/panel-visibility.md) — Why the WebView, not Photoshop, says the panel closed
 
 ## Common Commands
 

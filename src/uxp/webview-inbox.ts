@@ -31,24 +31,27 @@ export const handleWebviewMessage = (raw: unknown): void => {
   // Null means the message was already rejected and logged by the contract.
   if (!message) return;
 
-  if (message.type === "ready") {
-    markWebviewReady();
-    return;
-  }
-
-  if (message.type === "visibility") {
-    // Whatever the listener does with this -- tearing a pipeline down, in
-    // practice -- must not travel back over the bridge. Comlink reports a
-    // throw here to the WebView as a failed call, which is both the wrong
-    // place to learn about it and the wrong side to handle it.
-    try {
-      onVisibility?.(message.visible);
-    } catch (error) {
-      logger.error("Failed to apply the panel's visibility", error as Error);
+  // Whatever handling a message leads to -- tearing a pipeline down, reaching
+  // into the host -- must not travel back over the bridge. This is called by
+  // Comlink, which reports a throw to the WebView as a failed call: the wrong
+  // place to learn about it and the wrong side to do anything about it.
+  try {
+    if (message.type === "ready") {
+      markWebviewReady();
+      return;
     }
-    return;
-  }
 
-  // An analysis travels host -> WebView. One arriving here is well-formed but
-  // pointed the wrong way, so there is nothing to do with it.
+    if (message.type === "visibility") {
+      onVisibility?.(message.visible);
+      return;
+    }
+
+    // An analysis travels host -> WebView. One arriving here is well-formed but
+    // pointed the wrong way, so there is nothing to do with it.
+  } catch (error) {
+    logger.error(
+      `Failed to handle a ${message.type} message from the WebView`,
+      error as Error,
+    );
+  }
 };

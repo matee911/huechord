@@ -4,6 +4,7 @@ import { logger } from "./lib/logger";
 import { startPixelPipeline } from "./uxp/pixel-pipeline";
 import { connectWebview, disconnectWebview } from "./uxp/palette-publisher";
 import { listenForPanelVisibility } from "./uxp/webview-inbox";
+import { createPipelineOwner } from "./uxp/pipeline-owner";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- required by TS to augment the global JSX namespace
@@ -49,28 +50,20 @@ export const App = () => {
     };
   }, [webviewUI]);
 
-  // Tied to the panel being on screen rather than to this component's lifetime.
-  // The React tree is mounted once, when the plugin loads, and closing the
-  // panel does not unmount it -- a pipeline stopped on unmount would in
-  // practice never stop, and would keep reading the user's document on a timer
-  // for the rest of the session.
+  // Tied to the panel being on screen rather than to this component's
+  // lifetime, which never ends -- see webview-ui/src/panel-visibility.ts for
+  // why the page inside the panel is the only thing that can tell.
   useEffect(() => {
-    let stop: (() => void) | undefined;
+    const owner = createPipelineOwner(startPixelPipeline);
 
     const unsubscribe = listenForPanelVisibility((visible) => {
-      // The state can repeat: it is sent once at the handshake and again on
-      // every visibilitychange, and not every one of those is a transition.
-      if (visible) stop ??= startPixelPipeline();
-      else {
-        stop?.();
-        stop = undefined;
-      }
+      if (visible) owner.onVisible();
+      else owner.onHidden();
     });
 
     return () => {
       unsubscribe();
-      stop?.();
-      stop = undefined;
+      owner.onHidden();
     };
   }, []);
 
