@@ -18,6 +18,7 @@ describe("types", () => {
   it("Analysis holds DominantColors", () => {
     const palette: Analysis = {
       harmony: null,
+      picked: [],
       colors: [
         {
           rgb: { r: 255, g: 0, b: 0 },

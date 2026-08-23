@@ -7,6 +7,7 @@ const loggerInfo = vi.fn();
 const publishAnalysis = vi.fn();
 const publishStatus = vi.fn();
 const hasOpenDocument = vi.fn(() => true);
+const readPickedColors = vi.fn(() => [] as unknown[]);
 const loggerWarn = vi.fn();
 
 vi.mock("../uxp/events", () => ({
@@ -22,6 +23,9 @@ vi.mock("../uxp/palette-publisher", () => ({
 }));
 vi.mock("../uxp/document-state", () => ({
   hasOpenDocument: () => hasOpenDocument(),
+}));
+vi.mock("../uxp/color-samplers", () => ({
+  readPickedColors: () => readPickedColors(),
 }));
 vi.mock("../lib/logger", () => ({
   logger: {
@@ -64,6 +68,7 @@ describe("startPixelPipeline", () => {
     publishAnalysis.mockReset();
     publishStatus.mockReset();
     hasOpenDocument.mockReset().mockReturnValue(true);
+    readPickedColors.mockReset().mockReturnValue([]);
   });
 
   // Real extraction runs here rather than a mock: the point of the assertion is
@@ -157,9 +162,10 @@ describe("startPixelPipeline", () => {
     vi.advanceTimersByTime(DEBOUNCE_MS);
 
     await vi.waitFor(() => expect(publishAnalysis).toHaveBeenCalledTimes(1));
-    const [colors, harmony, timestamp] = publishAnalysis.mock.calls[0] as [
+    const [colors, harmony, , timestamp] = publishAnalysis.mock.calls[0] as [
       { hsl: { h: number }; weight: number }[],
       { type: string } | null,
+      unknown,
       number,
     ];
     expect(colors.map(({ hsl, weight }) => [hsl.h, weight])).toEqual([
@@ -566,6 +572,86 @@ describe("startPixelPipeline", () => {
     await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
 
     expect(publishAnalysis).toHaveBeenCalledTimes(1);
+  });
+
+  // The colors the user pointed at ride along with the palette: sent in a
+  // message of their own they could arrive a frame out of step, and the panel
+  // would ring a document that has moved on.
+  it("sends the picked colors with the palette", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    acquisitionYields(Array.from({ length: 40 }, () => [255, 0, 0, 255]));
+    const picked = [{ rgb: { r: 1, g: 2, b: 3 }, hsl: { h: 4, s: 5, l: 6 } }];
+    readPickedColors.mockReturnValue(picked);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    notifyDocumentChange();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    expect(publishAnalysis).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      picked,
+      expect.any(Number),
+    );
+  });
+
+  // The AC says a picked point never completes a harmony. It is true by
+  // construction -- detectHarmony is handed the palette and PickedColor has no
+  // weight to be weighed -- and a claim nothing checks is a claim that quietly
+  // stops being true.
+  it("does not let a picked point complete a harmony", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    // Two hues 120 apart: a third at 240 would make a triad, and the picked
+    // point below is exactly that color.
+    acquisitionYields([
+      ...Array.from({ length: 20 }, () => [255, 0, 0, 255]),
+      ...Array.from({ length: 20 }, () => [0, 255, 0, 255]),
+    ]);
+    readPickedColors.mockReturnValue([
+      { rgb: { r: 0, g: 0, b: 255 }, hsl: { h: 240, s: 100, l: 50 } },
+    ]);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    notifyDocumentChange();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    const [colors, harmony, picked] = publishAnalysis.mock.calls[0] as [
+      unknown[],
+      { type: string; colorIndices: number[] } | null,
+      unknown[],
+    ];
+    // Two hues 120 apart are no harmony on their own, and the third color the
+    // triad would need is on the wheel -- as a ring, which detection cannot see.
+    expect(harmony).toBeNull();
+    expect(colors).toHaveLength(2);
+    expect(picked).toHaveLength(1);
+  });
+
+  // Moving a sampler changes no pixel, so the dedupe that keeps the idle poll
+  // quiet would also keep the ring pinned where the marker used to be.
+  it("republishes when only the picked colors changed", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    acquisitionYields(Array.from({ length: 40 }, () => [255, 0, 0, 255]));
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    expect(publishAnalysis).toHaveBeenCalledTimes(1);
+
+    readPickedColors.mockReturnValue([
+      { rgb: { r: 9, g: 9, b: 9 }, hsl: { h: 0, s: 0, l: 4 } },
+    ]);
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+
+    expect(publishAnalysis).toHaveBeenCalledTimes(2);
   });
 
   // The bug this exists for: reopening the same document produces the very same

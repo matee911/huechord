@@ -6,7 +6,8 @@ import { extractDominantColors } from "../algorithms/color-extraction";
 import { detectHarmony } from "../algorithms/harmony";
 import { publishAnalysis, publishStatus } from "./palette-publisher";
 import { hasOpenDocument } from "./document-state";
-import type { DominantColor } from "../algorithms/types";
+import { readPickedColors } from "./color-samplers";
+import type { DominantColor, PickedColor } from "../algorithms/types";
 import type { PanelState } from "../bridge/messages";
 
 export const DEBOUNCE_MS = 400;
@@ -44,9 +45,16 @@ const formatPalette = (palette: DominantColor[]): string =>
 const sameSamples = (a: Uint8Array | undefined, b: Uint8Array): boolean =>
   a !== undefined && a.length === b.length && a.every((v, i) => v === b[i]);
 
+// What the panel would be shown, reduced to something comparable. The picked
+// colors are in here because moving a sampler changes no pixel: without them
+// the dedupe that keeps the idle poll quiet would also keep the ring from
+// following the marker.
+const frameSignature = (picked: PickedColor[]): string =>
+  picked.map(({ rgb }) => `${rgb.r},${rgb.g},${rgb.b}`).join("|");
+
 const analyzeDocument = async (
   isStopped: () => boolean,
-  isNewFrame: (data: Uint8Array) => boolean,
+  isNewFrame: (data: Uint8Array, signature: string) => boolean,
   reportNoDocument: () => void,
 ): Promise<void> => {
   // Asked before acquiring, not discovered by failing it: with nothing open
@@ -71,7 +79,8 @@ const analyzeDocument = async (
   // is a frame it has already published. Quantizing it again would cost the
   // same as a real change, and the panel would repaint and the console fill up
   // with a palette nobody changed.
-  if (!isNewFrame(acquired.data)) return;
+  const picked = readPickedColors();
+  if (!isNewFrame(acquired.data, frameSignature(picked))) return;
 
   const start = Date.now();
   const palette = extractDominantColors(acquired.data, acquired.channels);
@@ -107,7 +116,7 @@ const analyzeDocument = async (
       { budgetMs: HARMONY_BUDGET_MS },
     );
 
-  publishAnalysis(palette, harmony, Date.now());
+  publishAnalysis(palette, harmony, picked, Date.now());
 };
 
 /**
@@ -134,6 +143,7 @@ export const startPixelPipeline = (): (() => void) => {
   // Per pipeline, like the flags above: a second panel must not be told its
   // first frame is old because another one had already seen it.
   let lastSamples: Uint8Array | undefined;
+  let lastSignature: string | undefined;
   // The last state the panel was told about, so a state that has not changed
   // is not sent again on every tick.
   let reported: PanelState | undefined;
@@ -166,9 +176,11 @@ export const startPixelPipeline = (): (() => void) => {
     // there would surface as an unhandled rejection with no panel-side trace.
     analyzeDocument(
       () => stopped,
-      (data) => {
-        if (sameSamples(lastSamples, data)) return false;
+      (data, signature) => {
+        if (sameSamples(lastSamples, data) && signature === lastSignature)
+          return false;
         lastSamples = data;
+        lastSignature = signature;
         // An analysis answers whatever state was reported, so the next spell
         // of having nothing open has to be announced again.
         reported = undefined;

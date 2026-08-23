@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   BRIDGE_VERSION,
   MAX_PALETTE_COLORS,
+  MAX_PICKED_COLORS,
   analysisMessage,
   readyMessage,
   statusMessage,
@@ -45,7 +46,7 @@ afterEach(() => {
 
 describe("bridge message contract", () => {
   it("tags a palette message with its type and schema version", () => {
-    const message = analysisMessage([aColor(20, 0.5)], null, 1700000000000);
+    const message = analysisMessage([aColor(20, 0.5)], null, [], 1700000000000);
 
     expect(message).toEqual({
       type: "analysis",
@@ -53,6 +54,7 @@ describe("bridge message contract", () => {
       payload: {
         colors: [aColor(20, 0.5)],
         harmony: null,
+        picked: [],
         timestamp: 1700000000000,
       },
     });
@@ -62,22 +64,23 @@ describe("bridge message contract", () => {
     // One message, not two: the harmony names positions *in* the palette, so
     // sent apart the panel could draw a shape through the wrong corners.
     const colors = [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)];
-    const message = analysisMessage(colors, aHarmony(), 7);
+    const message = analysisMessage(colors, aHarmony(), [], 7);
 
     expect(message.payload).toEqual({
       colors,
       harmony: aHarmony(),
+      picked: [],
       timestamp: 7,
     });
   });
 
   it("accepts an analysis that reports no harmony", () => {
-    expect(parseBridgeMessage(analysisMessage([], null, 1))).not.toBeNull();
+    expect(parseBridgeMessage(analysisMessage([], null, [], 1))).not.toBeNull();
   });
 
   it("accepts an analysis carrying a harmony it produced itself", () => {
     const colors = [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)];
-    const message = analysisMessage(colors, aHarmony(), 1);
+    const message = analysisMessage(colors, aHarmony(), [], 1);
 
     expect(parseBridgeMessage(JSON.parse(JSON.stringify(message)))).toEqual(
       message,
@@ -111,6 +114,7 @@ describe("bridge message contract", () => {
     const message = analysisMessage(
       [aColor(20, 0.5), aColor(200, 0.5)],
       null,
+      [],
       1,
     );
 
@@ -118,7 +122,7 @@ describe("bridge message contract", () => {
   });
 
   it("accepts a palette message it produced itself", () => {
-    const message = analysisMessage([aColor(20, 1)], null, 42);
+    const message = analysisMessage([aColor(20, 1)], null, [], 42);
 
     expect(parseBridgeMessage(JSON.parse(JSON.stringify(message)))).toEqual(
       message,
@@ -204,7 +208,9 @@ describe("bridge message contract", () => {
       aColor(0, 1 / MAX_PALETTE_COLORS),
     );
 
-    expect(parseBridgeMessage(analysisMessage(colors, null, 1))).not.toBeNull();
+    expect(
+      parseBridgeMessage(analysisMessage(colors, null, [], 1)),
+    ).not.toBeNull();
   });
 
   it("keeps the contents of a rejected message out of the log", () => {
@@ -434,6 +440,7 @@ describe("parseBridgeMessage rejects", () => {
         analysisMessage(
           [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
           harmony,
+          [],
           1,
         ),
       ),
@@ -441,6 +448,7 @@ describe("parseBridgeMessage rejects", () => {
       analysisMessage(
         [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
         harmony,
+        [],
         1,
       ),
     );
@@ -462,6 +470,7 @@ describe("parseBridgeMessage rejects", () => {
         analysisMessage(
           [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
           aHarmony(nearMiss as { outlierIndices: number[] }),
+          [],
           1,
         ),
       ),
@@ -477,6 +486,91 @@ describe("parseBridgeMessage rejects", () => {
         analysisMessage(
           [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
           harmony as HarmonyMatch,
+          [],
+          1,
+        ),
+      ),
+    ).toBeNull();
+  });
+
+  const aPicked = (h: number) => ({
+    rgb: { r: 10, g: 20, b: 30 },
+    hsl: { h, s: 50, l: 50 },
+  });
+
+  it("accepts an analysis carrying the points the user picked", () => {
+    const picked = [aPicked(0), aPicked(120)];
+
+    expect(
+      parseBridgeMessage(analysisMessage([aColor(0, 1)], null, picked, 1)),
+    ).toEqual(analysisMessage([aColor(0, 1)], null, picked, 1));
+  });
+
+  // Photoshop allows ten samplers per document; a message claiming more was
+  // not produced by the tool this reads, and the panel would draw every one.
+  it("refuses more picked colors than the contract allows", () => {
+    const picked = Array.from({ length: MAX_PICKED_COLORS + 1 }, (_, at) =>
+      aPicked(at * 10),
+    );
+
+    expect(
+      parseBridgeMessage(analysisMessage([aColor(0, 1)], null, picked, 1)),
+    ).toBeNull();
+  });
+
+  it.each([
+    ["not a list", "several"],
+    ["missing", undefined],
+  ])("refuses an analysis whose picked colors are %s", (_case, picked) => {
+    const message = analysisMessage([aColor(0, 1)], null, [], 1);
+
+    expect(
+      parseBridgeMessage({
+        ...message,
+        payload: { ...message.payload, picked },
+      }),
+    ).toBeNull();
+  });
+
+  it("refuses a picked color with no place on the wheel", () => {
+    const message = analysisMessage([aColor(0, 1)], null, [], 1);
+
+    expect(
+      parseBridgeMessage({
+        ...message,
+        payload: {
+          ...message.payload,
+          picked: [{ rgb: { r: 1, g: 2, b: 3 } }],
+        },
+      }),
+    ).toBeNull();
+  });
+
+  // A deviation is an angle on the wheel, and half a turn is as far as two
+  // hues can be from each other. Past that the sender is describing something
+  // this build has no way to draw.
+  it.each([
+    ["beyond half a turn", 181],
+    ["negative", -1],
+  ])("refuses a harmony whose deviation is %s", (_case, maxDeviation) => {
+    const colors = [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)];
+
+    expect(
+      parseBridgeMessage(
+        analysisMessage(colors, { ...aHarmony(), maxDeviation }, [], 1),
+      ),
+    ).toBeNull();
+  });
+
+  it("refuses a harmony pointing at a color the palette does not have", () => {
+    const colors = [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)];
+
+    expect(
+      parseBridgeMessage(
+        analysisMessage(
+          colors,
+          { ...aHarmony(), colorIndices: [0, 1, 9] },
+          [],
           1,
         ),
       ),
@@ -502,6 +596,7 @@ describe("parseBridgeMessage rejects", () => {
               maxDeviation: 4,
               nearMiss: { outlierIndices: [1] },
             },
+            [],
             1,
           ),
         ),

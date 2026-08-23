@@ -6,6 +6,7 @@ import {
   getPalette,
   getPaletteReceivedAt,
   getPanelState,
+  getPickedColors,
   subscribeToPalette,
 } from "./palette-store";
 import { reportRenderTime } from "./render-budget";
@@ -13,7 +14,7 @@ import { ColorWheel } from "./components/color-wheel";
 import { PaletteBar } from "./components/palette-bar";
 import { HarmonyLabel } from "./components/harmony-label";
 import type { PanelState } from "../../src/bridge/messages";
-import type { DominantColor } from "../../src/algorithms/types";
+import type { DominantColor, PickedColor } from "../../src/algorithms/types";
 
 // The handshake and the Comlink wiring belong to the document, not to a
 // render: App re-renders on every palette, and repeating `expose` plus a
@@ -32,14 +33,17 @@ const panelStatus = (colorCount: number, state: PanelState | null): string => {
 // A stable empty palette, so a panel with nothing to show does not hand the
 // wheel a fresh array on every render.
 const EMPTY_PALETTE: DominantColor[] = [];
+const EMPTY_PICKED: PickedColor[] = [];
 
 export const App = () => {
   const colors = useSyncExternalStore(subscribeToPalette, getPalette);
   const harmony = useSyncExternalStore(subscribeToPalette, getHarmony);
   const state = useSyncExternalStore(subscribeToPalette, getPanelState);
+  const picked = useSyncExternalStore(subscribeToPalette, getPickedColors);
 
   const shown = state === "no-document" ? EMPTY_PALETTE : colors;
   const shownHarmony = state === "no-document" ? null : harmony;
+  const shownPicked = state === "no-document" ? EMPTY_PICKED : picked;
 
   useEffect(() => {
     const receivedAt = getPaletteReceivedAt();
@@ -52,7 +56,7 @@ export const App = () => {
       {/* Nothing from the previous document while the panel is saying there
           is no document: a wheel full of dots under "Open a document to
           analyze" describes a file that is not open any more. */}
-      <ColorWheel colors={shown} harmony={shownHarmony} />
+      <ColorWheel colors={shown} harmony={shownHarmony} picked={shownPicked} />
       <PaletteBar colors={shown} />
       {/* No harmony line either: "No harmony in this frame" under "Open a
           document to analyze" is a claim about a frame that does not exist. */}

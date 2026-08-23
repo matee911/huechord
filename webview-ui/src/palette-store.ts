@@ -1,5 +1,9 @@
 import { parseBridgeMessage } from "../../src/bridge/messages";
-import type { DominantColor, HarmonyMatch } from "../../src/algorithms/types";
+import type {
+  DominantColor,
+  HarmonyMatch,
+  PickedColor,
+} from "../../src/algorithms/types";
 import type { PanelState } from "../../src/bridge/messages";
 
 type Listener = () => void;
@@ -17,6 +21,9 @@ let harmony: HarmonyMatch | null = null;
 // When the palette below arrived, so the panel can measure what it costs to
 // put it on screen rather than assume.
 let receivedAt = 0;
+// The colors the user pointed at with Photoshop's own sampler tool. Replaced
+// with the palette, never on their own: they describe the same moment.
+let picked: PickedColor[] = [];
 // Why there is nothing to show, when that is the case. Distinct from an empty
 // palette: a document full of transparent pixels also has no colors, and the
 // panel should not tell the user to open one they already have open.
@@ -30,6 +37,8 @@ export const getHarmony = (): HarmonyMatch | null => harmony;
 export const getPaletteReceivedAt = (): number => receivedAt;
 
 export const getPanelState = (): PanelState | null => state;
+
+export const getPickedColors = (): PickedColor[] => picked;
 
 export const subscribeToPalette = (listener: Listener): (() => void) => {
   listeners.add(listener);
@@ -53,6 +62,7 @@ export const receiveBridgeMessage = (raw: unknown): void => {
   } else if (message.type === "analysis") {
     colors = message.payload.colors;
     harmony = message.payload.harmony;
+    picked = message.payload.picked;
     receivedAt = performance.now();
     // An analysis is proof a document is open, so it is the one thing that
     // clears the state -- there is no separate "never mind" message.

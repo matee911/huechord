@@ -2,6 +2,7 @@ import type {
   DominantColor,
   HarmonyMatch,
   HarmonyType,
+  PickedColor,
 } from "../algorithms/types";
 import { logger } from "../lib/logger";
 
@@ -15,7 +16,7 @@ import { logger } from "../lib/logger";
 // Bumped when an existing variant's shape changes in a way an older receiver
 // would misread. Adding a new `type` does not need a bump; the discriminant
 // already tells an older receiver it doesn't know the message.
-export const BRIDGE_VERSION = 3;
+export const BRIDGE_VERSION = 4;
 
 // The most colors an analysis message may carry. Deliberately a property of the
 // contract rather than an import from the extractor: the WebView would then
@@ -23,6 +24,12 @@ export const BRIDGE_VERSION = 3;
 // validating against the sender's current appetite is not validating at all.
 // A test pins it against what the extractor actually produces.
 export const MAX_PALETTE_COLORS = 16;
+
+// Photoshop allows ten color samplers per document, and this is a receiver
+// refusing to draw more rings than the tool can produce. Stated here rather
+// than imported from the host module for the same reason as the palette cap:
+// a receiver validating against the sender's appetite validates nothing.
+export const MAX_PICKED_COLORS = 10;
 
 // Every harmony this build knows how to name and draw, and how many colors each
 // one is made of. A receiver that trusted the sender's string would put an
@@ -47,6 +54,10 @@ const HARMONY_SIZES: Record<HarmonyType, number | null> = {
  */
 export interface Analysis {
   colors: DominantColor[];
+  // The colors the user pointed at. They travel with the palette rather than
+  // in a message of their own: sent separately they could arrive a frame out
+  // of step, and the panel would draw rings for a document that has moved on.
+  picked: PickedColor[];
   // Null when the frame shows no harmony, which is the ordinary case.
   harmony: HarmonyMatch | null;
   timestamp: number;
@@ -97,11 +108,12 @@ export type BridgeMessage =
 export const analysisMessage = (
   colors: DominantColor[],
   harmony: HarmonyMatch | null,
+  picked: PickedColor[],
   timestamp: number,
 ): AnalysisMessage => ({
   type: "analysis",
   version: BRIDGE_VERSION,
-  payload: { colors, harmony, timestamp },
+  payload: { colors, harmony, picked, timestamp },
 });
 
 export const visibilityMessage = (visible: boolean): VisibilityMessage => ({
@@ -141,6 +153,13 @@ const isDominantColor = (value: unknown): value is DominantColor =>
   isNumberTriplet(value.rgb, ["r", "g", "b"]) &&
   isNumberTriplet(value.hsl, ["h", "s", "l"]) &&
   isFiniteNumber(value.weight);
+
+// The same color without a weight: a picked point covers no share of the frame,
+// so a weight here would be a number the sender had to invent.
+const isPickedColor = (value: unknown): value is PickedColor =>
+  isRecord(value) &&
+  isNumberTriplet(value.rgb, ["r", "g", "b"]) &&
+  isNumberTriplet(value.hsl, ["h", "s", "l"]);
 
 /**
  * Checked against the palette it arrived with, not on its own: the indices are
@@ -282,6 +301,14 @@ export const parseBridgeMessage = (raw: unknown): BridgeMessage | null => {
     if (!isDominantColor(payload.colors[i]))
       return reject("palette contains a malformed color", raw);
 
+  if (!Array.isArray(payload.picked))
+    return reject("picked colors are not a list", raw);
+  if (payload.picked.length > MAX_PICKED_COLORS)
+    return reject("more picked colors than the contract allows", raw);
+  for (let i = 0; i < payload.picked.length; i += 1)
+    if (!isPickedColor(payload.picked[i]))
+      return reject("a picked color is malformed", raw);
+
   // Checked last, and against the palette above: ordering the harmony first
   // would reject every malformed palette as a malformed harmony, leaving the
   // palette rules asserted by nothing.
@@ -297,6 +324,7 @@ export const parseBridgeMessage = (raw: unknown): BridgeMessage | null => {
     payload: {
       colors: payload.colors,
       harmony: payload.harmony as HarmonyMatch | null,
+      picked: payload.picked as PickedColor[],
       timestamp: payload.timestamp,
     },
   };

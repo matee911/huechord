@@ -102,6 +102,15 @@ $reserved-height: $panel-padding * 2 + $row-gap * 2 + $palette-bar-height +
   stroke-dasharray: 6 5;
 }
 
+// A point the user asked about, rather than a color the image is made of. A
+// different shape, not a differently-stroked circle: the wheel already carries
+// two kinds of circle, and a third would be told apart only by its outline.
+.wheel-picked {
+  stroke: var(--uxp-host-text-color, #ffffff);
+  stroke-width: 2;
+  paint-order: stroke;
+}
+
 // The color the shape is waiting on. A ring around it rather than a change to
 // the dot, so the color it reports stays exactly what it is.
 //

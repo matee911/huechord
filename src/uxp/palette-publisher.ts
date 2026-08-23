@@ -5,7 +5,11 @@ import {
   type BridgeMessage,
   type PanelState,
 } from "../bridge/messages";
-import type { DominantColor, HarmonyMatch } from "../algorithms/types";
+import type {
+  DominantColor,
+  HarmonyMatch,
+  PickedColor,
+} from "../algorithms/types";
 
 // The real sink is a Comlink call into the WebView, so it answers with a
 // promise and reports a torn-down panel by rejecting it, not by throwing.
@@ -80,8 +84,9 @@ export const publishStatus = (state: PanelState): void => {
 export const publishAnalysis = (
   colors: DominantColor[],
   harmony: HarmonyMatch | null,
+  picked: PickedColor[],
   timestamp: number,
 ): void => {
-  pending = analysisMessage(colors, harmony, timestamp);
+  pending = analysisMessage(colors, harmony, picked, timestamp);
   flush();
 };

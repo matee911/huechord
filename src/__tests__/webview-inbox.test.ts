@@ -111,7 +111,7 @@ describe("the WebView inbox", () => {
     const listener = vi.fn();
     listenForPanelVisibility(listener);
 
-    handleWebviewMessage(analysisMessage([], null, 1));
+    handleWebviewMessage(analysisMessage([], null, [], 1));
 
     expect(markWebviewReady).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();

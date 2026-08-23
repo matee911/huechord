@@ -4,6 +4,7 @@ import {
   getPalette,
   getPaletteReceivedAt,
   getPanelState,
+  getPickedColors,
   receiveBridgeMessage,
   subscribeToPalette,
 } from "../palette-store";
@@ -34,14 +35,16 @@ const aHarmony = (type: HarmonyMatch["type"]): HarmonyMatch => ({
 beforeEach(() => {
   const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   setLogger(logger);
-  receiveBridgeMessage(analysisMessage([], null, 1));
+  receiveBridgeMessage(analysisMessage([], null, [], 1));
 });
 
 describe("palette store", () => {
   it("replaces the harmony together with the colors it points into", () => {
-    receiveBridgeMessage(analysisMessage([aColor(10)], aHarmony("triadic"), 1));
     receiveBridgeMessage(
-      analysisMessage([aColor(200)], aHarmony("monochromatic"), 2),
+      analysisMessage([aColor(10)], aHarmony("triadic"), [], 1),
+    );
+    receiveBridgeMessage(
+      analysisMessage([aColor(200)], aHarmony("monochromatic"), [], 2),
     );
 
     // Never one without the other: the harmony indexes the palette, so a
@@ -58,7 +61,7 @@ describe("palette store", () => {
     const listener = vi.fn();
     subscribeToPalette(listener);
 
-    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, [], 1));
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(getPalette()).toEqual([aColor(10)]);
@@ -68,7 +71,7 @@ describe("palette store", () => {
     const listener = vi.fn();
     subscribeToPalette(listener)();
 
-    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, [], 1));
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -77,7 +80,7 @@ describe("palette store", () => {
     // The panel showing stale colors beats the panel going blank because
     // something upstream sent nonsense.
     const listener = vi.fn();
-    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, [], 1));
     subscribeToPalette(listener);
 
     expect(() => receiveBridgeMessage({ type: "wat" })).not.toThrow();
@@ -97,13 +100,13 @@ describe("palette store", () => {
   it("keeps a snapshot stable between palettes", () => {
     // useSyncExternalStore re-renders whenever the snapshot changes identity,
     // so a fresh array per read would loop the panel forever.
-    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, [], 1));
 
     expect(getPalette()).toBe(getPalette());
   });
 
   it("stamps when a palette arrived, so the render can be timed", () => {
-    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, [], 1));
 
     expect(getPaletteReceivedAt()).toBeGreaterThan(0);
   });
@@ -128,18 +131,43 @@ describe("palette store", () => {
   it("clears the state when an analysis arrives", () => {
     receiveBridgeMessage(statusMessage("no-document"));
 
-    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, [], 1));
 
     expect(getPanelState()).toBeNull();
     expect(getPalette()).toHaveLength(1);
   });
 
   it("keeps the last palette when a state arrives after it", () => {
-    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, [], 1));
 
     receiveBridgeMessage(statusMessage("no-document"));
 
     expect(getPanelState()).toBe("no-document");
     expect(getPalette()).toHaveLength(1);
+  });
+
+  it("keeps the picked colors that arrived with the palette", () => {
+    const picked = [{ rgb: { r: 1, g: 2, b: 3 }, hsl: { h: 4, s: 5, l: 6 } }];
+
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, picked, 1));
+
+    expect(getPickedColors()).toEqual(picked);
+  });
+
+  // They describe the same moment as the palette, so they are replaced with it
+  // -- a ring left over from the previous frame marks a pixel that has moved.
+  it("replaces the picked colors together with the palette", () => {
+    receiveBridgeMessage(
+      analysisMessage(
+        [aColor(10)],
+        null,
+        [{ rgb: { r: 1, g: 2, b: 3 }, hsl: { h: 4, s: 5, l: 6 } }],
+        1,
+      ),
+    );
+
+    receiveBridgeMessage(analysisMessage([aColor(20)], null, [], 2));
+
+    expect(getPickedColors()).toEqual([]);
   });
 });

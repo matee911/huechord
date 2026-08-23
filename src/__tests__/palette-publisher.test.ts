@@ -33,7 +33,7 @@ describe("palette publisher", () => {
     const sink = vi.fn();
     connectWebview(sink);
 
-    publishAnalysis([aColor(10)], null, 1);
+    publishAnalysis([aColor(10)], null, [], 1);
 
     // The WebView is a separate browser engine with its own startup time.
     // Sending before it has a listener drops the message with no retry.
@@ -43,25 +43,25 @@ describe("palette publisher", () => {
   it("delivers the buffered palette once the WebView reports ready", () => {
     const sink = vi.fn();
     connectWebview(sink);
-    publishAnalysis([aColor(10)], null, 1);
+    publishAnalysis([aColor(10)], null, [], 1);
 
     markWebviewReady();
 
     expect(sink).toHaveBeenCalledExactlyOnceWith(
-      analysisMessage([aColor(10)], null, 1),
+      analysisMessage([aColor(10)], null, [], 1),
     );
   });
 
   it("delivers only the most recent palette buffered before ready", () => {
     const sink = vi.fn();
     connectWebview(sink);
-    publishAnalysis([aColor(10)], null, 1);
-    publishAnalysis([aColor(200)], null, 2);
+    publishAnalysis([aColor(10)], null, [], 1);
+    publishAnalysis([aColor(200)], null, [], 2);
 
     markWebviewReady();
 
     expect(sink).toHaveBeenCalledExactlyOnceWith(
-      analysisMessage([aColor(200)], null, 2),
+      analysisMessage([aColor(200)], null, [], 2),
     );
   });
 
@@ -70,12 +70,12 @@ describe("palette publisher", () => {
     connectWebview(sink);
     markWebviewReady();
 
-    publishAnalysis([aColor(10)], null, 1);
-    publishAnalysis([aColor(200)], null, 2);
+    publishAnalysis([aColor(10)], null, [], 1);
+    publishAnalysis([aColor(200)], null, [], 2);
 
     expect(sink).toHaveBeenCalledTimes(2);
     expect(sink).toHaveBeenLastCalledWith(
-      analysisMessage([aColor(200)], null, 2),
+      analysisMessage([aColor(200)], null, [], 2),
     );
   });
 
@@ -86,10 +86,10 @@ describe("palette publisher", () => {
     const sink = vi.fn();
     connectWebview(sink);
 
-    publishAnalysis([aColor(10)], null, 1);
+    publishAnalysis([aColor(10)], null, [], 1);
 
     expect(sink).toHaveBeenCalledExactlyOnceWith(
-      analysisMessage([aColor(10)], null, 1),
+      analysisMessage([aColor(10)], null, [], 1),
     );
   });
 
@@ -100,7 +100,7 @@ describe("palette publisher", () => {
     connectWebview(sink);
     markWebviewReady();
 
-    expect(() => publishAnalysis([aColor(10)], null, 1)).not.toThrow();
+    expect(() => publishAnalysis([aColor(10)], null, [], 1)).not.toThrow();
     expect(logger.error).toHaveBeenCalled();
   });
 
@@ -111,7 +111,7 @@ describe("palette publisher", () => {
     connectWebview(sink);
     markWebviewReady();
 
-    publishAnalysis([aColor(10)], null, 1);
+    publishAnalysis([aColor(10)], null, [], 1);
 
     await vi.waitFor(() => expect(logger.error).toHaveBeenCalled());
   });
@@ -122,7 +122,7 @@ describe("palette publisher", () => {
     markWebviewReady();
 
     disconnectWebview();
-    publishAnalysis([aColor(10)], null, 1);
+    publishAnalysis([aColor(10)], null, [], 1);
 
     expect(sink).not.toHaveBeenCalled();
   });
@@ -137,7 +137,7 @@ describe("palette publisher", () => {
     // registered its own listener — the previous handshake says nothing about it.
     const second = vi.fn();
     connectWebview(second);
-    publishAnalysis([aColor(10)], null, 1);
+    publishAnalysis([aColor(10)], null, [], 1);
 
     expect(second).not.toHaveBeenCalled();
   });
@@ -170,12 +170,12 @@ describe("palette publisher", () => {
     const sink = vi.fn();
     connectWebview(sink);
     publishStatus("no-document");
-    publishAnalysis([aColor(10)], null, 1);
+    publishAnalysis([aColor(10)], null, [], 1);
 
     markWebviewReady();
 
     expect(sink).toHaveBeenCalledExactlyOnceWith(
-      analysisMessage([aColor(10)], null, 1),
+      analysisMessage([aColor(10)], null, [], 1),
     );
   });
 });

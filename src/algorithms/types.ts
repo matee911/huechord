@@ -45,6 +45,16 @@ export interface HarmonyMatch {
   nearMiss: NearMiss | null;
 }
 
+/**
+ * A color the user pointed at, rather than one the image is made of. No weight:
+ * a picked point covers no share of the frame, so there is no dot size to
+ * derive and nothing for harmony detection to weigh.
+ */
+export interface PickedColor {
+  rgb: RGBColor;
+  hsl: HSLColor;
+}
+
 export interface NearMiss {
   // Positions in the palette, all of them among `colorIndices`. Plural because
   // two colors are often equally out of place -- always so in a two-armed
