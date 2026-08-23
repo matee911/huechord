@@ -61,6 +61,18 @@ export const ANALOGOUS_ARC_DEGREES = 60;
  */
 export const SATURATION_FLOOR = 10;
 
+/**
+ * Hue is just as meaningless at the ends of the lightness axis, and saturation
+ * does not catch it: `rgb(10, 0, 0)` is a shadow the eye reads as black, yet
+ * it is fully saturated and would vote on whether the frame is complementary.
+ * A blown highlight does the same at the other end.
+ *
+ * Detection only. The palette keeps them, because the bar is a picture of the
+ * image and a photograph that is two thirds shadow should look like one.
+ */
+export const LIGHTNESS_FLOOR = 5;
+export const LIGHTNESS_CEILING = 95;
+
 const normalizeHue = (hue: number): number => ((hue % 360) + 360) % 360;
 
 /** The shortest way round the wheel between two hues, per ADR-008. */
@@ -88,7 +100,10 @@ interface Candidate {
 /** The colors big enough and colored enough to say anything about hue. */
 const candidates = (colors: DominantColor[]): Candidate[] =>
   colors.flatMap(({ hsl, weight }, index) =>
-    hsl.s >= SATURATION_FLOOR && weight >= MIN_SHARE
+    hsl.s >= SATURATION_FLOOR &&
+    hsl.l >= LIGHTNESS_FLOOR &&
+    hsl.l <= LIGHTNESS_CEILING &&
+    weight >= MIN_SHARE
       ? [{ index, hue: hsl.h }]
       : [],
   );

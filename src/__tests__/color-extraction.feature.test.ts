@@ -305,6 +305,76 @@ describeFeature(feature, ({ Scenario }) => {
     });
   });
 
+  // A frame with nothing in it is the case a quantizer is most likely to answer
+  // strangely -- one cluster, no clusters, or a division by a zero population.
+  Scenario("An all-black frame", ({ Given, When, Then, And }) => {
+    Given("a buffer of 400 pixels that are all 0, 0, 0", () => {
+      buffer = bufferOf(uniform(400, [0, 0, 0]));
+    });
+
+    When("dominant colors are extracted", extract);
+
+    Then("exactly 1 dominant color is returned", () => {
+      expect(palette).toHaveLength(1);
+    });
+
+    // Not exactly zero: the quantizer reports a cluster average, which lands a
+    // few units off its inputs. What matters is that the frame reads as black.
+    And("the only color is as dark as the frame and covers all of it", () => {
+      expect(palette[0].hsl.l).toBeLessThan(5);
+      expect(palette[0].weight).toBeCloseTo(1);
+    });
+  });
+
+  Scenario("An all-white frame", ({ Given, When, Then, And }) => {
+    Given("a buffer of 400 pixels that are all 255, 255, 255", () => {
+      buffer = bufferOf(uniform(400, [255, 255, 255]));
+    });
+
+    When("dominant colors are extracted", extract);
+
+    Then("exactly 1 dominant color is returned", () => {
+      expect(palette).toHaveLength(1);
+    });
+
+    And("the only color is as light as the frame and covers all of it", () => {
+      expect(palette[0].hsl.l).toBeGreaterThan(95);
+      expect(palette[0].weight).toBeCloseTo(1);
+    });
+
+    // The cluster average for an all-white frame comes back as 256 on a
+    // channel, which is not a color -- the panel would render `rgb(256, …)`
+    // and the contract would wave it through as a finite number.
+    And("no channel is outside the range a color can take", () => {
+      for (const value of Object.values(palette[0].rgb)) {
+        expect(value).toBeGreaterThanOrEqual(0);
+        expect(value).toBeLessThanOrEqual(255);
+      }
+    });
+  });
+
+  // Gray has no hue to report, and the conversion has to say so rather than
+  // land on an arbitrary angle that the wheel would then draw a dot at.
+  Scenario("A grayscale frame", ({ Given, When, Then }) => {
+    Given(
+      "a buffer of 400 pixels stepping through eight shades of gray",
+      () => {
+        buffer = bufferOf(
+          Array.from({ length: 8 }, (_, step) =>
+            uniform(50, [step * 32, step * 32, step * 32]),
+          ).flat(),
+        );
+      },
+    );
+
+    When("dominant colors are extracted", extract);
+
+    Then("every color returned has no saturation", () => {
+      expect(palette.length).toBeGreaterThan(0);
+      for (const { hsl } of palette) expect(hsl.s).toBe(0);
+    });
+  });
+
   Scenario(
     "Extraction stays inside the frame budget",
     ({ Given, When, Then }) => {

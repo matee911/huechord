@@ -4,7 +4,8 @@ import { acquirePixels } from "./imaging";
 import { listenForDocumentChanges } from "./events";
 import { extractDominantColors } from "../algorithms/color-extraction";
 import { detectHarmony } from "../algorithms/harmony";
-import { publishAnalysis } from "./palette-publisher";
+import { publishAnalysis, publishStatus } from "./palette-publisher";
+import { hasOpenDocument } from "./document-state";
 import type { DominantColor } from "../algorithms/types";
 
 export const DEBOUNCE_MS = 400;
@@ -46,6 +47,14 @@ const analyzeDocument = async (
   isStopped: () => boolean,
   isNewFrame: (data: Uint8Array) => boolean,
 ): Promise<void> => {
+  // Asked before acquiring, not discovered by failing it: with nothing open
+  // the read enters a modal scope only to be refused, and the panel cannot
+  // tell that apart from a document whose colors are all transparent.
+  if (!hasOpenDocument()) {
+    publishStatus("no-document");
+    return;
+  }
+
   const acquired = await acquirePixels();
   // Undefined when there is no open document, or when the host refused the
   // read. Both are ordinary, and imaging.ts has already logged.

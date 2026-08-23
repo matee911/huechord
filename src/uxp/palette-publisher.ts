@@ -1,8 +1,9 @@
 import { logger } from "../lib/logger";
 import {
   analysisMessage,
-  type AnalysisMessage,
+  statusMessage,
   type BridgeMessage,
+  type PanelState,
 } from "../bridge/messages";
 import type { DominantColor, HarmonyMatch } from "../algorithms/types";
 
@@ -12,12 +13,15 @@ export type BridgeSink = (message: BridgeMessage) => void | Promise<unknown>;
 
 let sink: BridgeSink | undefined;
 let webviewReady = false;
-// The last analysis the WebView has not been told about yet. It exists because
-// the panel can analyze a document before the WebView finishes loading, and
-// postMessage has no buffer or retry of its own — without this, the first
-// analysis of a session would be lost and the wheel would stay empty until
-// the user made another edit.
-let pending: AnalysisMessage | undefined;
+// The last thing the WebView has not been told about yet -- an analysis or a
+// state. It exists because the panel can analyze a document before the WebView
+// finishes loading, and postMessage has no buffer or retry of its own; without
+// this, the first analysis of a session would be lost and the wheel would stay
+// empty until the user made another edit.
+//
+// One slot for both kinds, because they answer the same question: what should
+// the panel be showing right now. Two would let a stale one arrive last.
+let pending: BridgeMessage | undefined;
 
 const reportFailedSend = (error: Error): void => {
   // A closing panel can tear the WebView down between the ready handshake and
@@ -67,6 +71,12 @@ export const markWebviewReady = (): void => {
  * Palette and harmony go in one message: the harmony is a list of positions
  * into the palette, so the two are not separable even in principle.
  */
+/** Tells the WebView about a state that is not an analysis. */
+export const publishStatus = (state: PanelState): void => {
+  pending = statusMessage(state);
+  flush();
+};
+
 export const publishAnalysis = (
   colors: DominantColor[],
   harmony: HarmonyMatch | null,

@@ -3,9 +3,10 @@ import {
   connectWebview,
   disconnectWebview,
   markWebviewReady,
+  publishStatus,
   publishAnalysis,
 } from "../uxp/palette-publisher";
-import { analysisMessage } from "../bridge/messages";
+import { analysisMessage, statusMessage } from "../bridge/messages";
 import { setLogger, type Logger } from "../lib/logger";
 import type { DominantColor } from "../algorithms/types";
 
@@ -139,5 +140,42 @@ describe("palette publisher", () => {
     publishAnalysis([aColor(10)], null, 1);
 
     expect(second).not.toHaveBeenCalled();
+  });
+
+  it("sends a state the same way it sends a palette", () => {
+    const sink = vi.fn();
+    connectWebview(sink);
+    markWebviewReady();
+
+    publishStatus("no-document");
+
+    expect(sink).toHaveBeenCalledExactlyOnceWith(statusMessage("no-document"));
+  });
+
+  it("holds a state back until the WebView reports ready", () => {
+    const sink = vi.fn();
+    connectWebview(sink);
+
+    publishStatus("no-document");
+
+    expect(sink).not.toHaveBeenCalled();
+    markWebviewReady();
+    expect(sink).toHaveBeenCalledExactlyOnceWith(statusMessage("no-document"));
+  });
+
+  // One buffer for both kinds, so whichever was published last is what the
+  // panel is told. Two buffers would let a state that was already answered by
+  // an analysis arrive after it and blank the wheel.
+  it("delivers only the newest of a state and a palette", () => {
+    const sink = vi.fn();
+    connectWebview(sink);
+    publishStatus("no-document");
+    publishAnalysis([aColor(10)], null, 1);
+
+    markWebviewReady();
+
+    expect(sink).toHaveBeenCalledExactlyOnceWith(
+      analysisMessage([aColor(10)], null, 1),
+    );
   });
 });

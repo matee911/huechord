@@ -24,6 +24,24 @@ const paletteOf = (
     weight: weights ? weights[index] : 1 / hues.length,
   }));
 
+/**
+ * The same palette, plus one color pinned at an extreme of the lightness axis.
+ * Saturation stays high on purpose: that is the whole point -- a shadow can be
+ * fully saturated, so the saturation floor never sees it.
+ */
+const paletteWithExtreme = (
+  hues: number[],
+  extremeHue: number,
+  lightness: number,
+): DominantColor[] => [
+  ...paletteOf(hues),
+  {
+    rgb: { r: 0, g: 0, b: 0 },
+    hsl: { h: extremeHue, s: SATURATED, l: lightness },
+    weight: 1 / (hues.length + 1),
+  },
+];
+
 describeFeature(feature, ({ Scenario }) => {
   let palette: DominantColor[];
   let harmony: HarmonyMatch | null;
@@ -368,6 +386,48 @@ describeFeature(feature, ({ Scenario }) => {
       expect(harmony).toBeNull();
     });
   });
+
+  // A shadow's hue is an artifact of rounding, and it is fully saturated, so
+  // the saturation floor lets it through to vote on the shape.
+  Scenario(
+    "A shadow does not vote on harmony",
+    ({ Given, When, Then, And }) => {
+      Given(
+        "dominant colors at hues 0, 120 and 240 plus a near-black at hue 55",
+        () => {
+          palette = paletteWithExtreme([0, 120, 240], 55, 2);
+        },
+      );
+      When("harmony detection runs", detect);
+      Then("the harmony is triadic", () => {
+        expect(harmony?.type).toBe("triadic");
+      });
+      And("it is formed by 3 colors", () => {
+        expect(harmony?.colorIndices).toHaveLength(3);
+        expect(harmony?.colorIndices).not.toContain(3);
+      });
+    },
+  );
+
+  Scenario(
+    "A blown highlight does not vote either",
+    ({ Given, When, Then, And }) => {
+      Given(
+        "dominant colors at hues 0, 120 and 240 plus a near-white at hue 55",
+        () => {
+          palette = paletteWithExtreme([0, 120, 240], 55, 98);
+        },
+      );
+      When("harmony detection runs", detect);
+      Then("the harmony is triadic", () => {
+        expect(harmony?.type).toBe("triadic");
+      });
+      And("it is formed by 3 colors", () => {
+        expect(harmony?.colorIndices).toHaveLength(3);
+        expect(harmony?.colorIndices).not.toContain(3);
+      });
+    },
+  );
 
   Scenario(
     "Detection stays inside the frame budget",

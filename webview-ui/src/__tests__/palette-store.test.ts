@@ -3,10 +3,15 @@ import {
   getHarmony,
   getPalette,
   getPaletteReceivedAt,
+  getPanelState,
   receiveBridgeMessage,
   subscribeToPalette,
 } from "../palette-store";
-import { analysisMessage, readyMessage } from "../../../src/bridge/messages";
+import {
+  analysisMessage,
+  readyMessage,
+  statusMessage,
+} from "../../../src/bridge/messages";
 import { setLogger, type Logger } from "../../../src/lib/logger";
 import type {
   DominantColor,
@@ -100,5 +105,40 @@ describe("palette store", () => {
     receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
 
     expect(getPaletteReceivedAt()).toBeGreaterThan(0);
+  });
+
+  it("remembers a state the host reports", () => {
+    receiveBridgeMessage(statusMessage("no-document"));
+
+    expect(getPanelState()).toBe("no-document");
+  });
+
+  it("tells its subscribers about a state, not just a palette", () => {
+    const listener = vi.fn();
+    subscribeToPalette(listener);
+
+    receiveBridgeMessage(statusMessage("no-document"));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  // An analysis is proof a document is open, so it is the one thing that
+  // clears the state. There is no separate "never mind" message to lose.
+  it("clears the state when an analysis arrives", () => {
+    receiveBridgeMessage(statusMessage("no-document"));
+
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+
+    expect(getPanelState()).toBeNull();
+    expect(getPalette()).toHaveLength(1);
+  });
+
+  it("keeps the last palette when a state arrives after it", () => {
+    receiveBridgeMessage(analysisMessage([aColor(10)], null, 1));
+
+    receiveBridgeMessage(statusMessage("no-document"));
+
+    expect(getPanelState()).toBe("no-document");
+    expect(getPalette()).toHaveLength(1);
   });
 });

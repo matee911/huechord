@@ -36,6 +36,14 @@ export const extractDominantColors = (
 
   const populations = new Map<string, { rgb: RGBColor; count: number }>();
 
+  // The quantizer reports each cluster's average, and that average is not
+  // guaranteed to land inside the range its inputs came from -- an all-white
+  // frame comes back as 256 on a channel. Out of range it is not a color any
+  // more: it reaches the panel as `rgb(256, …)` and the contract's finite-
+  // number check has no reason to stop it.
+  const channel = (value: number): number =>
+    Math.min(255, Math.max(0, Math.round(value)));
+
   // The quantizer's public surface exposes the palette but not how many pixels
   // landed in each cluster, so attribute them here. A second pass also drops
   // clusters that ended up empty, which is what keeps a two-color image from
@@ -52,7 +60,8 @@ export const extractDominantColors = (
   // exactly this call whenever no box contains the pixel, and "closest palette
   // color in RGB" is the attribution this function wants anyway.
   for (const pixel of pixels) {
-    const [r, g, b] = colorMap.nearest(pixel);
+    const [red, green, blue] = colorMap.nearest(pixel);
+    const [r, g, b] = [channel(red), channel(green), channel(blue)];
     const key = `${r},${g},${b}`;
     const population = populations.get(key);
 

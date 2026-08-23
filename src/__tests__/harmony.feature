@@ -147,3 +147,15 @@ Feature: Harmony detection
     Given dominant colors at hues 12, 88, 133, 196, 271 and 338
     When harmony detection runs
     Then detection completed in under 5 milliseconds
+
+  Scenario: A shadow does not vote on harmony
+    Given dominant colors at hues 0, 120 and 240 plus a near-black at hue 55
+    When harmony detection runs
+    Then the harmony is triadic
+    And it is formed by 3 colors
+
+  Scenario: A blown highlight does not vote either
+    Given dominant colors at hues 0, 120 and 240 plus a near-white at hue 55
+    When harmony detection runs
+    Then the harmony is triadic
+    And it is formed by 3 colors

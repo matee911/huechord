@@ -5,6 +5,8 @@ const acquirePixels = vi.fn();
 const loggerError = vi.fn();
 const loggerInfo = vi.fn();
 const publishAnalysis = vi.fn();
+const publishStatus = vi.fn();
+const hasOpenDocument = vi.fn(() => true);
 const loggerWarn = vi.fn();
 
 vi.mock("../uxp/events", () => ({
@@ -16,6 +18,10 @@ vi.mock("../uxp/imaging", () => ({
 }));
 vi.mock("../uxp/palette-publisher", () => ({
   publishAnalysis: (...args: unknown[]) => publishAnalysis(...args),
+  publishStatus: (...args: unknown[]) => publishStatus(...args),
+}));
+vi.mock("../uxp/document-state", () => ({
+  hasOpenDocument: () => hasOpenDocument(),
 }));
 vi.mock("../lib/logger", () => ({
   logger: {
@@ -56,6 +62,8 @@ describe("startPixelPipeline", () => {
     loggerWarn.mockReset();
     loggerInfo.mockReset();
     publishAnalysis.mockReset();
+    publishStatus.mockReset();
+    hasOpenDocument.mockReset().mockReturnValue(true);
   });
 
   // Real extraction runs here rather than a mock: the point of the assertion is
@@ -494,6 +502,44 @@ describe("startPixelPipeline", () => {
     await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
 
     expect(acquirePixels).toHaveBeenCalledTimes(2);
+  });
+
+  // Asked before acquiring: with nothing open the read enters a modal scope
+  // only to be refused, which used to write a stack trace to the console every
+  // five seconds for as long as the panel stayed open.
+  it("does not ask the host for pixels when no document is open", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    hasOpenDocument.mockReturnValue(false);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+
+    expect(acquirePixels).not.toHaveBeenCalled();
+    expect(publishStatus).toHaveBeenCalledWith("no-document");
+  });
+
+  // The panel cannot work this out for itself: an all-transparent document
+  // also yields nothing, and it must not tell the user to open a document
+  // they already have open.
+  it("tells the panel once a document is there again", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    acquisitionYields(Array.from({ length: 40 }, () => [255, 0, 0, 255]));
+    hasOpenDocument.mockReturnValue(false);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+
+    hasOpenDocument.mockReturnValue(true);
+    notifyDocumentChange();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    expect(publishAnalysis).toHaveBeenCalledTimes(1);
   });
 
   it("removes the listener when stopped after the subscription resolved", async () => {

@@ -65,3 +65,21 @@ Feature: Dominant color extraction
     Given a buffer of 10000 pixels drawn from more than 100 distinct colors
     When dominant colors are extracted
     Then extraction completed in under 50 milliseconds
+
+  Scenario: An all-black frame
+    Given a buffer of 400 pixels that are all 0, 0, 0
+    When dominant colors are extracted
+    Then exactly 1 dominant color is returned
+    And the only color is as dark as the frame and covers all of it
+
+  Scenario: An all-white frame
+    Given a buffer of 400 pixels that are all 255, 255, 255
+    When dominant colors are extracted
+    Then exactly 1 dominant color is returned
+    And the only color is as light as the frame and covers all of it
+    And no channel is outside the range a color can take
+
+  Scenario: A grayscale frame
+    Given a buffer of 400 pixels stepping through eight shades of gray
+    When dominant colors are extracted
+    Then every color returned has no saturation

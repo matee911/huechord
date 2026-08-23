@@ -4,6 +4,7 @@ import {
   MAX_PALETTE_COLORS,
   analysisMessage,
   readyMessage,
+  statusMessage,
   visibilityMessage,
   parseBridgeMessage,
   type BridgeMessage,
@@ -157,6 +158,33 @@ describe("bridge message contract", () => {
       { type: "visibility", version: BRIDGE_VERSION, visible: null },
     ],
   ])("rejects a visibility message with %s", (_case, raw) => {
+    expect(parseBridgeMessage(raw)).toBeNull();
+  });
+
+  it("tags a status message with its type and schema version", () => {
+    expect(statusMessage("no-document")).toEqual({
+      type: "status",
+      version: BRIDGE_VERSION,
+      state: "no-document",
+    });
+  });
+
+  it("accepts a status message it produced itself", () => {
+    expect(parseBridgeMessage(statusMessage("no-document"))).toEqual(
+      statusMessage("no-document"),
+    );
+  });
+
+  // A state this build cannot name is a message the panel would have to
+  // render and could not, so it is refused rather than passed through.
+  it.each([
+    [
+      "an unknown state",
+      { type: "status", version: BRIDGE_VERSION, state: "on-fire" },
+    ],
+    ["no state at all", { type: "status", version: BRIDGE_VERSION }],
+    ["a numeric state", { type: "status", version: BRIDGE_VERSION, state: 1 }],
+  ])("rejects a status message with %s", (_case, raw) => {
     expect(parseBridgeMessage(raw)).toBeNull();
   });
 

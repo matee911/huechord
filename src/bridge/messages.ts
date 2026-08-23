@@ -70,12 +70,29 @@ export interface VisibilityMessage {
   visible: boolean;
 }
 
+/**
+ * Everything the panel can be told that is not an analysis. There is one such
+ * state today, and it exists because the panel cannot infer it: an empty
+ * palette looks the same whether no document is open or an open one has
+ * nothing worth calling a color.
+ */
+export const PANEL_STATES = ["no-document"] as const;
+
+export type PanelState = (typeof PANEL_STATES)[number];
+
+export interface StatusMessage {
+  type: "status";
+  version: number;
+  state: PanelState;
+}
+
 export interface ReadyMessage {
   type: "ready";
   version: number;
 }
 
-export type BridgeMessage = AnalysisMessage | ReadyMessage | VisibilityMessage;
+export type BridgeMessage =
+  AnalysisMessage | ReadyMessage | StatusMessage | VisibilityMessage;
 
 export const analysisMessage = (
   colors: DominantColor[],
@@ -91,6 +108,12 @@ export const visibilityMessage = (visible: boolean): VisibilityMessage => ({
   type: "visibility",
   version: BRIDGE_VERSION,
   visible,
+});
+
+export const statusMessage = (state: PanelState): StatusMessage => ({
+  type: "status",
+  version: BRIDGE_VERSION,
+  state,
 });
 
 export const readyMessage = (): ReadyMessage => ({
@@ -183,6 +206,18 @@ export const parseBridgeMessage = (raw: unknown): BridgeMessage | null => {
     return reject("schema version is from a later build", raw);
 
   if (raw.type === "ready") return { type: "ready", version: raw.version };
+
+  if (raw.type === "status") {
+    // Checked against the list rather than "is a string": an unknown state
+    // would reach the panel as a message it must render and cannot name.
+    if (!PANEL_STATES.includes(raw.state as PanelState))
+      return reject("status carries no state this build knows", raw);
+    return {
+      type: "status",
+      version: raw.version,
+      state: raw.state as PanelState,
+    };
+  }
 
   if (raw.type === "visibility") {
     // Not coerced: anything but a boolean here means the sender and this build
