@@ -13,6 +13,7 @@ import { ColorWheel } from "./components/color-wheel";
 import { PaletteBar } from "./components/palette-bar";
 import { HarmonyLabel } from "./components/harmony-label";
 import type { PanelState } from "../../src/bridge/messages";
+import type { DominantColor } from "../../src/algorithms/types";
 
 // The handshake and the Comlink wiring belong to the document, not to a
 // render: App re-renders on every palette, and repeating `expose` plus a
@@ -28,10 +29,17 @@ const panelStatus = (colorCount: number, state: PanelState | null): string => {
   return "Open a document and start editing";
 };
 
+// A stable empty palette, so a panel with nothing to show does not hand the
+// wheel a fresh array on every render.
+const EMPTY_PALETTE: DominantColor[] = [];
+
 export const App = () => {
   const colors = useSyncExternalStore(subscribeToPalette, getPalette);
   const harmony = useSyncExternalStore(subscribeToPalette, getHarmony);
   const state = useSyncExternalStore(subscribeToPalette, getPanelState);
+
+  const shown = state === "no-document" ? EMPTY_PALETTE : colors;
+  const shownHarmony = state === "no-document" ? null : harmony;
 
   useEffect(() => {
     const receivedAt = getPaletteReceivedAt();
@@ -41,9 +49,12 @@ export const App = () => {
 
   return (
     <main className="panel">
-      <ColorWheel colors={colors} harmony={harmony} />
-      <PaletteBar colors={colors} />
-      <HarmonyLabel harmony={harmony} />
+      {/* Nothing from the previous document while the panel is saying there
+          is no document: a wheel full of dots under "Open a document to
+          analyze" describes a file that is not open any more. */}
+      <ColorWheel colors={shown} harmony={shownHarmony} />
+      <PaletteBar colors={shown} />
+      <HarmonyLabel harmony={shownHarmony} />
       <p className="panel-status">{panelStatus(colors.length, state)}</p>
     </main>
   );

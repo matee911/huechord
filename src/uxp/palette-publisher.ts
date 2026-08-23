@@ -66,17 +66,17 @@ export const markWebviewReady = (): void => {
   flush();
 };
 
-/**
- * Hands a freshly analyzed document to the WebView, or holds it until it can.
- * Palette and harmony go in one message: the harmony is a list of positions
- * into the palette, so the two are not separable even in principle.
- */
 /** Tells the WebView about a state that is not an analysis. */
 export const publishStatus = (state: PanelState): void => {
   pending = statusMessage(state);
   flush();
 };
 
+/**
+ * Hands a freshly analyzed document to the WebView, or holds it until it can.
+ * Palette and harmony go in one message: the harmony is a list of positions
+ * into the palette, so the two are not separable even in principle.
+ */
 export const publishAnalysis = (
   colors: DominantColor[],
   harmony: HarmonyMatch | null,

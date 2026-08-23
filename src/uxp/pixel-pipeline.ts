@@ -7,6 +7,7 @@ import { detectHarmony } from "../algorithms/harmony";
 import { publishAnalysis, publishStatus } from "./palette-publisher";
 import { hasOpenDocument } from "./document-state";
 import type { DominantColor } from "../algorithms/types";
+import type { PanelState } from "../bridge/messages";
 
 export const DEBOUNCE_MS = 400;
 
@@ -46,12 +47,13 @@ const sameSamples = (a: Uint8Array | undefined, b: Uint8Array): boolean =>
 const analyzeDocument = async (
   isStopped: () => boolean,
   isNewFrame: (data: Uint8Array) => boolean,
+  reportNoDocument: () => void,
 ): Promise<void> => {
   // Asked before acquiring, not discovered by failing it: with nothing open
   // the read enters a modal scope only to be refused, and the panel cannot
   // tell that apart from a document whose colors are all transparent.
   if (!hasOpenDocument()) {
-    publishStatus("no-document");
+    reportNoDocument();
     return;
   }
 
@@ -125,6 +127,9 @@ export const startPixelPipeline = (): (() => void) => {
   // Per pipeline, like the flags above: a second panel must not be told its
   // first frame is old because another one had already seen it.
   let lastSamples: Uint8Array | undefined;
+  // The last state the panel was told about, so a state that has not changed
+  // is not sent again on every tick.
+  let reported: PanelState | undefined;
 
   const debouncedAcquire = debounce(() => analyze(), DEBOUNCE_MS);
   // A debounce is exactly this timer: one pending call, restarted from the
@@ -157,7 +162,23 @@ export const startPixelPipeline = (): (() => void) => {
       (data) => {
         if (sameSamples(lastSamples, data)) return false;
         lastSamples = data;
+        // An analysis answers whatever state was reported, so the next spell
+        // of having nothing open has to be announced again.
+        reported = undefined;
         return true;
+      },
+      () => {
+        // Forgotten deliberately. Reopening the same document produces the very
+        // same hundred pixels, and a remembered frame would match them, skip
+        // the publish and leave the panel telling the user to open a document
+        // they are looking at.
+        lastSamples = undefined;
+        // Sent once per spell of having nothing open, not once per tick: the
+        // panel is already showing it, and the poll runs for as long as the
+        // user leaves Photoshop empty.
+        if (reported === "no-document") return;
+        reported = "no-document";
+        publishStatus("no-document");
       },
     )
       .catch((error) => {

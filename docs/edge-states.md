@@ -2,8 +2,8 @@
 
 ## TL;DR
 
-- With no document open the panel says so, instead of showing the palette of a document that was
-  closed ten minutes ago and a stack trace every five seconds.
+- With no document open the panel says so, and stops showing the palette of a document that was
+  closed ten minutes ago. The console stops writing a stack trace every five seconds.
 - The host is not asked for pixels at all when there is no document, which removes both the error
   and the modal scope.
 - Near-black and near-white colors stop steering harmony detection. Their hue is an artifact of
@@ -36,6 +36,14 @@ of those three is a lie in each of the other two cases.
 Before, a tick with no open document went all the way into `executeAsModal`, failed there, and wrote
 `Pixel acquisition failed` with a stack trace to the console — every five seconds, for as long as
 the panel stayed open. The check costs one property read and removes the whole path.
+
+## Coming back to the same document
+
+Reopening the document that was just closed produces the very same hundred pixels, which the
+dedupe added for the idle poll recognises as a frame already published — so it skips the publish,
+and the panel keeps telling the user to open a document they are looking at. Reporting "no
+document" therefore forgets the remembered frame, and the state itself is sent once per spell of
+having nothing open rather than once per tick.
 
 ## Near-black and near-white
 

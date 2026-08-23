@@ -1,5 +1,6 @@
 import { photoshop } from "../globals";
 import { logger } from "../lib/logger";
+import { isHostBusy } from "./host-errors";
 
 /**
  * Whether Photoshop has anything open to analyze.
@@ -15,7 +16,16 @@ export const hasOpenDocument = (): boolean => {
     // A host that cannot answer is not a host with no document. Treating it as
     // "there is one" keeps the pipeline on its usual path, where a real failure
     // is already reported.
-    logger.error("Failed to ask the host for open documents", error as Error);
+    //
+    // Quiet when the host is merely busy, for the same reason acquisition is:
+    // this runs on the same five-second timer, so reporting it as a failure
+    // would put the stack traces straight back into the console.
+    if (isHostBusy(error))
+      logger.info(
+        `Could not ask the host for open documents: ${(error as Error).message}`,
+      );
+    else
+      logger.error("Failed to ask the host for open documents", error as Error);
     return true;
   }
 };

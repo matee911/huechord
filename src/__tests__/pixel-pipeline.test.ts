@@ -542,6 +542,64 @@ describe("startPixelPipeline", () => {
     expect(publishAnalysis).toHaveBeenCalledTimes(1);
   });
 
+  // The bug this exists for: reopening the same document produces the very same
+  // hundred pixels, so a remembered frame matches them, the publish is skipped
+  // and the panel keeps telling the user to open a document they are looking at.
+  it("publishes again when the same document comes back", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    acquisitionYields(Array.from({ length: 40 }, () => [255, 0, 0, 255]));
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    expect(publishAnalysis).toHaveBeenCalledTimes(1);
+
+    hasOpenDocument.mockReturnValue(false);
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    expect(publishStatus).toHaveBeenCalledWith("no-document");
+
+    hasOpenDocument.mockReturnValue(true);
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+
+    expect(publishAnalysis).toHaveBeenCalledTimes(2);
+  });
+
+  // The poll keeps running for as long as Photoshop is left empty, and the
+  // panel is already showing it.
+  it("says there is no document once, not on every tick", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    hasOpenDocument.mockReturnValue(false);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS * 3);
+
+    expect(publishStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it("says it again after a document has been and gone", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    acquisitionYields(Array.from({ length: 40 }, () => [255, 0, 0, 255]));
+    hasOpenDocument.mockReturnValue(false);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+
+    hasOpenDocument.mockReturnValue(true);
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    hasOpenDocument.mockReturnValue(false);
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+
+    expect(publishStatus).toHaveBeenCalledTimes(2);
+  });
+
   it("removes the listener when stopped after the subscription resolved", async () => {
     const unsubscribe = vi.fn().mockResolvedValue(undefined);
     listenForDocumentChanges.mockResolvedValue(unsubscribe);
