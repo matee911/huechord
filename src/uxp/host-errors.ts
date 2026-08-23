@@ -11,6 +11,11 @@
 // is no error code and no "is the host busy" query in the UXP surface. Kept
 // deliberately loose: it has to survive Adobe rewording the sentence around
 // the two words that carry the meaning.
+//
+// The cost of that looseness is a substring match: a failure that merely
+// mentions a modal scope is quietened along with the refusals. That is the
+// trade taken here, and it is why the caller keeps the message rather than
+// discarding it.
 const BUSY = /modal state/i;
 
 const messageOf = (error: unknown): string =>

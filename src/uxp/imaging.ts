@@ -78,7 +78,12 @@ export const acquirePixels = async (): Promise<
     // modal scope; the next attempt goes through. Reporting that as an error,
     // with a stack, buries the failures worth reading.
     if (isHostBusy(error))
-      logger.info("Skipped pixel acquisition — the host was busy");
+      // The message goes with it: if the host ever says which scope held the
+      // document, that is the sentence that will say so, and dropping it here
+      // makes it unrecoverable.
+      logger.info(
+        `Skipped pixel acquisition — the host was busy: ${(error as Error).message}`,
+      );
     // A document closed mid-acquisition, a read that failed, etc.: logged and
     // returned quietly rather than crashing the pipeline.
     else logger.error("Pixel acquisition failed", error as Error);
