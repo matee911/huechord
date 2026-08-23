@@ -171,13 +171,21 @@ export const startPixelPipeline = (): (() => void) => {
       });
   };
 
+  const reportFailedUnsubscribe = (error: unknown) => {
+    logger.error("Failed to unsubscribe from document changes", error as Error);
+  };
+
   const unsubscribeSafely = (unsub: () => Promise<void>) => {
-    unsub().catch((error) => {
-      logger.error(
-        "Failed to unsubscribe from document changes",
-        error as Error,
-      );
-    });
+    // Wrapped rather than awaited directly: Photoshop 27.9.1 returns undefined
+    // from removeNotificationListener despite the Promise in its declarations,
+    // and calling .catch on that throws. try/catch on top, because a host that
+    // throws synchronously would otherwise escape a teardown that now runs
+    // whenever the panel closes -- out through a call from the WebView.
+    try {
+      Promise.resolve(unsub()).catch(reportFailedUnsubscribe);
+    } catch (error) {
+      reportFailedUnsubscribe(error);
+    }
   };
 
   pollWhenIdle();

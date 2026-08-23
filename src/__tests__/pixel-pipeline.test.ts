@@ -577,6 +577,39 @@ describe("startPixelPipeline", () => {
     }
   });
 
+  // Photoshop 27.9.1 returns undefined from removeNotificationListener, even
+  // though its own declarations promise a Promise. Reaching for .catch on that
+  // throws, and the throw surfaces to whoever asked for the teardown.
+  it("tolerates an unsubscribe that returns nothing", async () => {
+    const unsubscribe = vi.fn(() => undefined as unknown as Promise<void>);
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+
+    const stop = startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    expect(() => stop()).not.toThrow();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  // Teardown runs when the panel closes now, and the call that removes the
+  // listener reaches the host. A synchronous throw there would escape the
+  // teardown entirely -- out through whoever asked for it, which is a Comlink
+  // call from the WebView.
+  it("logs an unsubscribe that throws synchronously", async () => {
+    const unsubscribe = vi.fn(() => {
+      throw new Error("gone");
+    });
+    listenForDocumentChanges.mockResolvedValue(unsubscribe);
+
+    const stop = startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    expect(() => stop()).not.toThrow();
+    expect(loggerError).toHaveBeenCalledTimes(1);
+    expect(loggerError.mock.calls[0][0]).toContain("Failed to unsubscribe");
+  });
+
   it("logs a failed unsubscribe", async () => {
     const unsubscribe = vi.fn().mockRejectedValue(new Error("gone"));
     listenForDocumentChanges.mockResolvedValue(unsubscribe);
