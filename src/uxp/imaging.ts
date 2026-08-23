@@ -10,8 +10,6 @@ export interface PixelAcquisitionResult {
   channels: number;
 }
 
-let acquisitionInFlight = false;
-
 // Photoshop refuses imaging.getPixels() outside a modal scope ("The requested
 // functionality is only allowed from inside a modal scope"), read-only or not.
 // The scope wraps acquisition alone — measuring and disposing happen outside
@@ -19,12 +17,6 @@ let acquisitionInFlight = false;
 export const acquirePixels = async (): Promise<
   PixelAcquisitionResult | undefined
 > => {
-  if (acquisitionInFlight) {
-    logger.info("Skipping pixel acquisition — previous call still in flight");
-    return undefined;
-  }
-
-  acquisitionInFlight = true;
   const start = Date.now();
 
   // Bound the instant the handle exists, so disposal still happens if
@@ -81,12 +73,9 @@ export const acquirePixels = async (): Promise<
     logger.error("Pixel acquisition failed", error as Error);
     return undefined;
   } finally {
-    // Reset first: disposal sits outside the catch above, so a throwing dispose
-    // would otherwise skip it and leave the guard stuck on, silencing the panel
-    // for the rest of the session. try/catch rather than .catch() because the
-    // host may throw synchronously despite the Promise return type.
-    acquisitionInFlight = false;
-
+    // Disposal sits outside the catch above, and the host may throw
+    // synchronously despite the Promise return type -- hence try/catch rather
+    // than .catch(). A leaked handle holds host memory for the session.
     try {
       await dispose?.();
     } catch (error) {

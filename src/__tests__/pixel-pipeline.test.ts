@@ -25,7 +25,7 @@ vi.mock("../lib/logger", () => ({
   },
 }));
 
-const { startPixelPipeline, DEBOUNCE_MS, HARMONY_BUDGET_MS } =
+const { startPixelPipeline, DEBOUNCE_MS, HARMONY_BUDGET_MS, IDLE_POLL_MS } =
   await import("../uxp/pixel-pipeline");
 
 // Hands back the promise the pipeline awaits plus its resolve/reject, so a test
@@ -291,6 +291,159 @@ describe("startPixelPipeline", () => {
     vi.useRealTimers();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(loggerInfo).not.toHaveBeenCalled();
+  });
+
+  // A held-open acquisition, so a test can decide when the pipeline is busy.
+  const acquisitionHangs = () => {
+    let finish!: (result: unknown) => void;
+    acquirePixels.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    return () =>
+      finish({
+        pixelCount: 1,
+        durationMs: 1,
+        data: Uint8Array.from([255, 0, 0, 255]),
+        channels: 4,
+      });
+  };
+
+  // The host sends each change once. One that arrives while the pipeline is
+  // busy describes a document the running acquisition is not looking at, so
+  // dropping it leaves the panel on colors that are already gone -- and nothing
+  // will say so until the user happens to edit again.
+  it("re-analyzes a change that arrived mid-acquisition", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const finishAcquisition = acquisitionHangs();
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+    await vi.waitFor(() => expect(acquirePixels).toHaveBeenCalledTimes(1));
+
+    notifyDocumentChange();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    // Not a second acquisition on top of the first: getPixels only runs inside
+    // a modal scope, and two of those overlapping is exactly what the guard
+    // this replaces was protecting the host from.
+    expect(acquirePixels).toHaveBeenCalledTimes(1);
+
+    finishAcquisition();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(acquirePixels).toHaveBeenCalledTimes(2);
+  });
+
+  // The re-run is owed to a change, not to the acquisition finishing. Without
+  // this the pipeline would chase its own tail on an idle document.
+  it("does not re-analyze when nothing changed during the acquisition", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const finishAcquisition = acquisitionHangs();
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+    await vi.waitFor(() => expect(acquirePixels).toHaveBeenCalledTimes(1));
+
+    finishAcquisition();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    expect(acquirePixels).toHaveBeenCalledTimes(1);
+  });
+
+  // Switching documents, and any edit that never reaches the history stack,
+  // emit no notification at all -- the panel would show the previous
+  // document's palette indefinitely with nothing to trigger a correction.
+  it("re-analyzes on its own when the host sends no events", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    expect(acquirePixels).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    expect(acquirePixels).toHaveBeenCalledTimes(2);
+  });
+
+  // The poll is a timer the pipeline owns, so teardown has to reach it too --
+  // otherwise a closed panel keeps opening modal scopes on the user's document
+  // every few seconds for the rest of the session.
+  it("stops polling once the pipeline is stopped", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+
+    const stop = startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    stop();
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS * 3);
+
+    expect(acquirePixels).not.toHaveBeenCalled();
+  });
+
+  // A change that lands mid-acquisition is remembered, and the memory must not
+  // outlive the panel: re-running after teardown analyzes a document nobody is
+  // watching.
+  it("drops a mid-acquisition change when the pipeline is stopped", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const finishAcquisition = acquisitionHangs();
+
+    const stop = startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+    await vi.waitFor(() => expect(acquirePixels).toHaveBeenCalledTimes(1));
+
+    notifyDocumentChange();
+    stop();
+    finishAcquisition();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    expect(acquirePixels).toHaveBeenCalledTimes(1);
+  });
+
+  // Two live pipelines are ordinary -- a quick panel close/reopen, or
+  // StrictMode's double-invoke. While the in-flight state was module-level they
+  // shared one guard, so whichever started second lost its first acquisition.
+  it("lets a second pipeline acquire while the first one is busy", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    acquisitionHangs();
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+    await vi.waitFor(() => expect(acquirePixels).toHaveBeenCalledTimes(1));
+
+    startPixelPipeline();
+    await vi.waitFor(() =>
+      expect(listenForDocumentChanges).toHaveBeenCalledTimes(2),
+    );
+    const notifySecond = listenForDocumentChanges.mock
+      .calls[1][0] as () => void;
+    notifySecond();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    expect(acquirePixels).toHaveBeenCalledTimes(2);
   });
 
   it("removes the listener when stopped after the subscription resolved", async () => {

@@ -14,6 +14,13 @@ export const DEBOUNCE_MS = 400;
 // on the machine doing the retouching.
 export const HARMONY_BUDGET_MS = 5;
 
+// How long the pipeline waits for the host before looking at the document on
+// its own. Photoshop has no notification for switching documents, and edits
+// that never reach the history stack emit nothing either (see events.ts), so
+// without a clock of its own the panel can sit on a palette from a document
+// the user has already left.
+export const IDLE_POLL_MS = 5000;
+
 // Values are cut down before logging: this line is read by a human in the UDT
 // console, and a palette at full float precision is not something a human
 // reads. The angle and the percentages round to whole units; the weight keeps
@@ -31,8 +38,8 @@ const formatPalette = (palette: DominantColor[]): string =>
 
 const analyzeDocument = async (isStopped: () => boolean): Promise<void> => {
   const acquired = await acquirePixels();
-  // Undefined when there is no open document, or when an acquisition is
-  // already in flight. Both are ordinary, and imaging.ts has already logged.
+  // Undefined when there is no open document, or when the host refused the
+  // read. Both are ordinary, and imaging.ts has already logged.
   if (!acquired) return;
 
   // Acquisition is a round trip through the host, and the panel can close
@@ -83,19 +90,66 @@ export const startPixelPipeline = (): (() => void) => {
   // acquisition for the rest of the session and stacks up on every restart.
   let stopped = false;
   let unsubscribe: (() => Promise<void>) | undefined;
+  // Acquisition runs inside a modal scope, so two of them must not overlap.
+  // The state that enforces that lives here rather than in imaging.ts for two
+  // reasons: this is the layer that knows how to re-schedule what it turned
+  // away, and a guard down there would be shared by every panel in the
+  // session — a second one's first acquisition would disappear into a scope
+  // it has nothing to do with.
+  let analyzing = false;
+  let changedWhileAnalyzing = false;
+  let idlePoll: ReturnType<typeof setTimeout> | undefined;
 
-  const debouncedAcquire = debounce(() => {
+  const debouncedAcquire = debounce(() => analyze(), DEBOUNCE_MS);
+
+  const pollWhenIdle = () => {
+    if (idlePoll) clearTimeout(idlePoll);
+    idlePoll = undefined;
+    if (stopped) return;
+    idlePoll = setTimeout(() => {
+      idlePoll = undefined;
+      analyze();
+    }, IDLE_POLL_MS);
+  };
+
+  function analyze(): void {
     // Cancelling on teardown only clears the timer that exists at that moment.
     // Photoshop can still deliver an event afterwards — the listener is removed
     // asynchronously, and a late-arriving one is removed later still — which
     // would schedule a fresh acquisition against a document nobody is watching.
     if (stopped) return;
+
+    if (analyzing) {
+      // The running acquisition is reading the document as it was before this
+      // change, so its answer is already out of date. The host sends each
+      // change once and never repeats it, so forgetting this one leaves the
+      // panel wrong until the user happens to edit again.
+      changedWhileAnalyzing = true;
+      return;
+    }
+
+    analyzing = true;
     // Quantization is third-party code running on host-supplied bytes; a throw
     // there would surface as an unhandled rejection with no panel-side trace.
-    analyzeDocument(() => stopped).catch((error) => {
-      logger.error("Failed to analyze the document", error as Error);
-    });
-  }, DEBOUNCE_MS);
+    analyzeDocument(() => stopped)
+      .catch((error) => {
+        logger.error("Failed to analyze the document", error as Error);
+      })
+      .finally(() => {
+        analyzing = false;
+        // Restarted from here rather than on a fixed interval: while the host
+        // keeps the panel busy there is nothing for the poll to catch, and an
+        // interval would queue acquisitions behind a slow one.
+        pollWhenIdle();
+
+        if (!changedWhileAnalyzing) return;
+        changedWhileAnalyzing = false;
+        // Back through the debounce instead of straight into acquisition:
+        // during continuous work the changes keep arriving, and re-running at
+        // once would chain analyses end to end with no pause to coalesce them.
+        debouncedAcquire();
+      });
+  }
 
   const unsubscribeSafely = (unsub: () => Promise<void>) => {
     unsub().catch((error) => {
@@ -105,6 +159,8 @@ export const startPixelPipeline = (): (() => void) => {
       );
     });
   };
+
+  pollWhenIdle();
 
   listenForDocumentChanges(debouncedAcquire)
     .then((unsub) => {
@@ -117,6 +173,8 @@ export const startPixelPipeline = (): (() => void) => {
 
   return () => {
     stopped = true;
+    if (idlePoll) clearTimeout(idlePoll);
+    idlePoll = undefined;
     // Housekeeping, not correctness: the flag above already stops a pending
     // call from acquiring. This releases the timer instead of letting it fire
     // into a no-op up to a debounce interval after the panel is gone.

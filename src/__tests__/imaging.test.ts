@@ -146,8 +146,8 @@ describe("acquirePixels", () => {
       failure,
     );
 
-    // The in-flight guard has to clear too, or one transient read failure
-    // silences the panel for the rest of the session.
+    // A transient read failure must not take the acquisition path down with
+    // it -- the next change has to be served as if nothing happened.
     await acquirePixels();
     expect(getPixelsMock).toHaveBeenCalledTimes(2);
   });
@@ -178,9 +178,9 @@ describe("acquirePixels", () => {
     expect(result).toBeUndefined();
   });
 
-  // A failing dispose must not wedge the in-flight guard: if it did, every
-  // later acquisition would be skipped and the panel would go silent for the
-  // rest of the session.
+  // A failing dispose must not take the next acquisition with it: the handle
+  // is already gone either way, and a panel that stops reading the document
+  // over it goes silent for the rest of the session.
   it("keeps working after a dispose failure", async () => {
     hostReturns({
       width: 100,
@@ -232,18 +232,29 @@ describe("acquirePixels", () => {
     );
   });
 
-  it("skips acquisition when a previous call is still in flight", async () => {
+  // Overlapping calls are serialized by whoever schedules them -- see the
+  // in-flight state in startPixelPipeline. A guard here instead would have no
+  // way to re-run what it turned away, and it would be shared by every panel
+  // in the session, so a second one's first acquisition vanished as well.
+  it("acquires for a caller that starts while another call is in flight", async () => {
     let resolveFirst: (value: unknown) => void = () => {};
-    const pending = new Promise((resolve) => {
-      resolveFirst = resolve;
-    });
-    getPixelsMock.mockReturnValueOnce(pending);
+    hostReturns({ width: 10, height: 10, dispose: vi.fn() });
+    getPixelsMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
 
     const first = acquirePixels();
     const second = await acquirePixels();
 
-    expect(second).toBeUndefined();
-    expect(getPixelsMock).toHaveBeenCalledTimes(1);
+    expect(second).toEqual({
+      pixelCount: expect.any(Number),
+      durationMs: expect.any(Number),
+      data: expect.any(Uint8Array),
+      channels: 4,
+    });
+    expect(getPixelsMock).toHaveBeenCalledTimes(2);
 
     resolveFirst({
       imageData: withDefaults({ width: 10, height: 10, dispose: vi.fn() }),
