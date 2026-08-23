@@ -1,5 +1,6 @@
 import { photoshop } from "../globals";
 import { logger } from "../lib/logger";
+import { isHostBusy } from "./host-errors";
 
 export interface PixelAcquisitionResult {
   pixelCount: number;
@@ -72,9 +73,15 @@ export const acquirePixels = async (): Promise<
       channels: acquired.channels,
     };
   } catch (error) {
-    // No open document, document closed mid-acquisition, etc. — log and
-    // return quietly rather than crashing the pipeline.
-    logger.error("Pixel acquisition failed", error as Error);
+    // A busy host is not a failure. The pipeline reads on a timer of its own,
+    // so it regularly asks while a tool gesture or a dialog already holds a
+    // modal scope; the next attempt goes through. Reporting that as an error,
+    // with a stack, buries the failures worth reading.
+    if (isHostBusy(error))
+      logger.info("Skipped pixel acquisition — the host was busy");
+    // A document closed mid-acquisition, a read that failed, etc.: logged and
+    // returned quietly rather than crashing the pipeline.
+    else logger.error("Pixel acquisition failed", error as Error);
     return undefined;
   } finally {
     // Disposal sits outside the catch above, and the host may throw

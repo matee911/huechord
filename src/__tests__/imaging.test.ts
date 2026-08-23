@@ -219,6 +219,21 @@ describe("acquirePixels", () => {
     );
   });
 
+  // The pipeline reads on its own timer, so it regularly asks while a gesture
+  // or a dialog already holds a modal scope. Reported as an error, with a
+  // stack, it buries the failures that are worth reading.
+  it("does not report a busy host as a failure", async () => {
+    getPixelsMock.mockRejectedValue(new Error("host is in a modal state"));
+
+    const result = await acquirePixels();
+
+    expect(result).toBeUndefined();
+    expect(loggerMock.error).not.toHaveBeenCalled();
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      expect.stringContaining("the host was busy"),
+    );
+  });
+
   it("does not throw and returns undefined when getPixels rejects", async () => {
     const failure = new Error("no active document");
     getPixelsMock.mockRejectedValue(failure);
