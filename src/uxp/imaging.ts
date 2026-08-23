@@ -10,6 +10,10 @@ export interface PixelAcquisitionResult {
   channels: number;
 }
 
+// Callers serialize their own calls -- see the in-flight state in
+// startPixelPipeline. Nothing here prevents two of these from overlapping, and
+// two modal scopes at once is not something the host promises to survive.
+//
 // Photoshop refuses imaging.getPixels() outside a modal scope ("The requested
 // functionality is only allowed from inside a modal scope"), read-only or not.
 // The scope wraps acquisition alone — measuring and disposing happen outside

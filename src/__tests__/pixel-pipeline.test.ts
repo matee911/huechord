@@ -390,9 +390,59 @@ describe("startPixelPipeline", () => {
     await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
 
     stop();
-    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS * 3);
 
+    // The timer itself, not just its effect: analyze() bails on a stopped
+    // pipeline anyway, so asserting only that nothing was acquired would pass
+    // just as happily with the poll left armed.
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS * 3);
     expect(acquirePixels).not.toHaveBeenCalled();
+  });
+
+  // The poll re-reads the document on a clock, so most of what it acquires is
+  // a frame already on screen. Publishing it again repaints the panel and
+  // writes another palette to the console for a document nobody touched.
+  it("stays quiet when the poll finds the document unchanged", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    acquisitionYields([
+      ...Array.from({ length: 30 }, () => [255, 0, 0, 255]),
+      ...Array.from({ length: 10 }, () => [0, 0, 255, 255]),
+    ]);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    expect(publishAnalysis).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    expect(acquirePixels).toHaveBeenCalledTimes(3);
+    expect(publishAnalysis).toHaveBeenCalledTimes(1);
+    expect(loggerInfo).toHaveBeenCalledTimes(2);
+  });
+
+  // Quiet must mean "nothing new", not "nothing again": a document that goes
+  // back to a palette it showed before still has to reach the panel.
+  it("publishes a frame that differs from the one before it", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    acquisitionYields(Array.from({ length: 40 }, () => [255, 0, 0, 255]));
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+
+    await vi.advanceTimersByTimeAsync(IDLE_POLL_MS);
+    expect(publishAnalysis).toHaveBeenCalledTimes(1);
+
+    acquisitionYields(Array.from({ length: 40 }, () => [0, 0, 255, 255]));
+    notifyDocumentChange();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    expect(publishAnalysis).toHaveBeenCalledTimes(2);
   });
 
   // A change that lands mid-acquisition is remembered, and the memory must not

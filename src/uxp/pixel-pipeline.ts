@@ -36,7 +36,16 @@ const formatPalette = (palette: DominantColor[]): string =>
     })),
   );
 
-const analyzeDocument = async (isStopped: () => boolean): Promise<void> => {
+// Byte equality on the downsampled samples, which is what "the document looks
+// the same" means to everything downstream of here. Cheap enough to run on
+// every analysis: the buffer is a hundred pixels wide by construction.
+const sameSamples = (a: Uint8Array | undefined, b: Uint8Array): boolean =>
+  a !== undefined && a.length === b.length && a.every((v, i) => v === b[i]);
+
+const analyzeDocument = async (
+  isStopped: () => boolean,
+  isNewFrame: (data: Uint8Array) => boolean,
+): Promise<void> => {
   const acquired = await acquirePixels();
   // Undefined when there is no open document, or when the host refused the
   // read. Both are ordinary, and imaging.ts has already logged.
@@ -46,6 +55,12 @@ const analyzeDocument = async (isStopped: () => boolean): Promise<void> => {
   // during it. Logging a palette for a document nobody is watching is noise
   // at best, and reads as a live panel at worst.
   if (isStopped()) return;
+
+  // The pipeline re-reads the document on a clock, so most of what it acquires
+  // is a frame it has already published. Quantizing it again would cost the
+  // same as a real change, and the panel would repaint and the console fill up
+  // with a palette nobody changed.
+  if (!isNewFrame(acquired.data)) return;
 
   const start = Date.now();
   const palette = extractDominantColors(acquired.data, acquired.channels);
@@ -98,21 +113,18 @@ export const startPixelPipeline = (): (() => void) => {
   // it has nothing to do with.
   let analyzing = false;
   let changedWhileAnalyzing = false;
-  let idlePoll: ReturnType<typeof setTimeout> | undefined;
+  // Per pipeline, like the flags above: a second panel must not be told its
+  // first frame is old because another one had already seen it.
+  let lastSamples: Uint8Array | undefined;
 
   const debouncedAcquire = debounce(() => analyze(), DEBOUNCE_MS);
+  // A debounce is exactly this timer: one pending call, restarted from the
+  // top on every re-arm and cancellable on teardown. Re-armed after each
+  // analysis rather than run on a fixed interval, so it can only ever fire
+  // after real silence instead of queueing behind a slow read.
+  const pollWhenIdle = debounce(() => analyze(), IDLE_POLL_MS);
 
-  const pollWhenIdle = () => {
-    if (idlePoll) clearTimeout(idlePoll);
-    idlePoll = undefined;
-    if (stopped) return;
-    idlePoll = setTimeout(() => {
-      idlePoll = undefined;
-      analyze();
-    }, IDLE_POLL_MS);
-  };
-
-  function analyze(): void {
+  const analyze = (): void => {
     // Cancelling on teardown only clears the timer that exists at that moment.
     // Photoshop can still deliver an event afterwards — the listener is removed
     // asynchronously, and a late-arriving one is removed later still — which
@@ -131,15 +143,23 @@ export const startPixelPipeline = (): (() => void) => {
     analyzing = true;
     // Quantization is third-party code running on host-supplied bytes; a throw
     // there would surface as an unhandled rejection with no panel-side trace.
-    analyzeDocument(() => stopped)
+    analyzeDocument(
+      () => stopped,
+      (data) => {
+        if (sameSamples(lastSamples, data)) return false;
+        lastSamples = data;
+        return true;
+      },
+    )
       .catch((error) => {
         logger.error("Failed to analyze the document", error as Error);
       })
       .finally(() => {
         analyzing = false;
-        // Restarted from here rather than on a fixed interval: while the host
-        // keeps the panel busy there is nothing for the poll to catch, and an
-        // interval would queue acquisitions behind a slow one.
+        // Teardown cancelled both timers while this analysis was still
+        // running, so re-arming either here would outlive the panel by one
+        // interval — a timer nobody is left to cancel.
+        if (stopped) return;
         pollWhenIdle();
 
         if (!changedWhileAnalyzing) return;
@@ -149,7 +169,7 @@ export const startPixelPipeline = (): (() => void) => {
         // once would chain analyses end to end with no pause to coalesce them.
         debouncedAcquire();
       });
-  }
+  };
 
   const unsubscribeSafely = (unsub: () => Promise<void>) => {
     unsub().catch((error) => {
@@ -173,12 +193,11 @@ export const startPixelPipeline = (): (() => void) => {
 
   return () => {
     stopped = true;
-    if (idlePoll) clearTimeout(idlePoll);
-    idlePoll = undefined;
     // Housekeeping, not correctness: the flag above already stops a pending
-    // call from acquiring. This releases the timer instead of letting it fire
-    // into a no-op up to a debounce interval after the panel is gone.
+    // call from acquiring. This releases the timers instead of letting them
+    // fire into a no-op up to an interval after the panel is gone.
     debouncedAcquire.cancel();
+    pollWhenIdle.cancel();
     if (unsubscribe) unsubscribeSafely(unsubscribe);
     // React never calls a cleanup twice, but this is a module-level function
     // now rather than a closure inside an effect — a second call removing the
