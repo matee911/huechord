@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   connectWebview,
   disconnectWebview,
-  handleWebviewMessage,
+  markWebviewReady,
   publishAnalysis,
 } from "../uxp/palette-publisher";
-import { analysisMessage, readyMessage } from "../bridge/messages";
+import { analysisMessage } from "../bridge/messages";
 import { setLogger, type Logger } from "../lib/logger";
 import type { DominantColor } from "../algorithms/types";
 
@@ -44,7 +44,7 @@ describe("palette publisher", () => {
     connectWebview(sink);
     publishAnalysis([aColor(10)], null, 1);
 
-    handleWebviewMessage(readyMessage());
+    markWebviewReady();
 
     expect(sink).toHaveBeenCalledExactlyOnceWith(
       analysisMessage([aColor(10)], null, 1),
@@ -57,7 +57,7 @@ describe("palette publisher", () => {
     publishAnalysis([aColor(10)], null, 1);
     publishAnalysis([aColor(200)], null, 2);
 
-    handleWebviewMessage(readyMessage());
+    markWebviewReady();
 
     expect(sink).toHaveBeenCalledExactlyOnceWith(
       analysisMessage([aColor(200)], null, 2),
@@ -67,7 +67,7 @@ describe("palette publisher", () => {
   it("delivers every palette published after ready", () => {
     const sink = vi.fn();
     connectWebview(sink);
-    handleWebviewMessage(readyMessage());
+    markWebviewReady();
 
     publishAnalysis([aColor(10)], null, 1);
     publishAnalysis([aColor(200)], null, 2);
@@ -81,7 +81,7 @@ describe("palette publisher", () => {
   it("still delivers when ready arrives before the WebView is connected", () => {
     // The WebView's own handshake call and the host's Comlink wiring complete
     // independently, so neither order is guaranteed.
-    handleWebviewMessage(readyMessage());
+    markWebviewReady();
     const sink = vi.fn();
     connectWebview(sink);
 
@@ -92,33 +92,12 @@ describe("palette publisher", () => {
     );
   });
 
-  it("ignores a malformed message from the WebView", () => {
-    const sink = vi.fn();
-    connectWebview(sink);
-    publishAnalysis([aColor(10)], null, 1);
-
-    expect(() => handleWebviewMessage({ type: "nonsense" })).not.toThrow();
-    expect(sink).not.toHaveBeenCalled();
-  });
-
-  it("ignores a well-formed message it has no use for", () => {
-    // The WebView is free to send other variants as the plugin grows; only
-    // the handshake means anything to the publisher.
-    const sink = vi.fn();
-    connectWebview(sink);
-    publishAnalysis([aColor(10)], null, 1);
-
-    handleWebviewMessage(analysisMessage([aColor(10)], null, 1));
-
-    expect(sink).not.toHaveBeenCalled();
-  });
-
   it("survives a WebView that has gone away mid-send", () => {
     const sink = vi.fn(() => {
       throw new Error("webview is gone");
     });
     connectWebview(sink);
-    handleWebviewMessage(readyMessage());
+    markWebviewReady();
 
     expect(() => publishAnalysis([aColor(10)], null, 1)).not.toThrow();
     expect(logger.error).toHaveBeenCalled();
@@ -129,7 +108,7 @@ describe("palette publisher", () => {
     // rejection. Caught synchronously it would escape as an unhandled one.
     const sink = vi.fn(() => Promise.reject(new Error("webview is gone")));
     connectWebview(sink);
-    handleWebviewMessage(readyMessage());
+    markWebviewReady();
 
     publishAnalysis([aColor(10)], null, 1);
 
@@ -139,7 +118,7 @@ describe("palette publisher", () => {
   it("stops sending after the panel disconnects", () => {
     const sink = vi.fn();
     connectWebview(sink);
-    handleWebviewMessage(readyMessage());
+    markWebviewReady();
 
     disconnectWebview();
     publishAnalysis([aColor(10)], null, 1);
@@ -150,7 +129,7 @@ describe("palette publisher", () => {
   it("requires a fresh handshake after a reconnect", () => {
     const first = vi.fn();
     connectWebview(first);
-    handleWebviewMessage(readyMessage());
+    markWebviewReady();
     disconnectWebview();
 
     // A reopened panel loads a brand new WebView document, which has not yet

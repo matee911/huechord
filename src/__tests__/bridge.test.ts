@@ -4,6 +4,7 @@ import {
   MAX_PALETTE_COLORS,
   analysisMessage,
   readyMessage,
+  visibilityMessage,
   parseBridgeMessage,
   type BridgeMessage,
 } from "../bridge/messages";
@@ -120,6 +121,43 @@ describe("bridge message contract", () => {
     expect(parseBridgeMessage(JSON.parse(JSON.stringify(message)))).toEqual(
       message,
     );
+  });
+
+  it("tags a visibility message with its type and schema version", () => {
+    expect(visibilityMessage(false)).toEqual({
+      type: "visibility",
+      version: BRIDGE_VERSION,
+      visible: false,
+    });
+  });
+
+  it.each([true, false])(
+    "accepts a visibility message it produced itself (%s)",
+    (visible) => {
+      expect(parseBridgeMessage(visibilityMessage(visible))).toEqual(
+        visibilityMessage(visible),
+      );
+    },
+  );
+
+  // Not coerced: a truthy string here would stop the pipeline for a panel that
+  // is on screen, and there is no reading of "yes" that is safe to guess at.
+  it.each([
+    ["a missing state", { type: "visibility", version: BRIDGE_VERSION }],
+    [
+      "a string state",
+      { type: "visibility", version: BRIDGE_VERSION, visible: "yes" },
+    ],
+    [
+      "a numeric state",
+      { type: "visibility", version: BRIDGE_VERSION, visible: 1 },
+    ],
+    [
+      "a null state",
+      { type: "visibility", version: BRIDGE_VERSION, visible: null },
+    ],
+  ])("rejects a visibility message with %s", (_case, raw) => {
+    expect(parseBridgeMessage(raw)).toBeNull();
   });
 
   it("accepts a ready message it produced itself", () => {

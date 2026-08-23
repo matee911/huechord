@@ -58,12 +58,24 @@ export interface AnalysisMessage {
   payload: Analysis;
 }
 
+/**
+ * Whether the panel is on screen, as reported by the page inside it. Photoshop
+ * announces a panel appearing but says nothing when it is closed, and the
+ * plugin's React tree is never unmounted -- so the WebView noticing its own
+ * `visibilitychange` is the only signal the host can act on.
+ */
+export interface VisibilityMessage {
+  type: "visibility";
+  version: number;
+  visible: boolean;
+}
+
 export interface ReadyMessage {
   type: "ready";
   version: number;
 }
 
-export type BridgeMessage = AnalysisMessage | ReadyMessage;
+export type BridgeMessage = AnalysisMessage | ReadyMessage | VisibilityMessage;
 
 export const analysisMessage = (
   colors: DominantColor[],
@@ -73,6 +85,12 @@ export const analysisMessage = (
   type: "analysis",
   version: BRIDGE_VERSION,
   payload: { colors, harmony, timestamp },
+});
+
+export const visibilityMessage = (visible: boolean): VisibilityMessage => ({
+  type: "visibility",
+  version: BRIDGE_VERSION,
+  visible,
 });
 
 export const readyMessage = (): ReadyMessage => ({
@@ -165,6 +183,15 @@ export const parseBridgeMessage = (raw: unknown): BridgeMessage | null => {
     return reject("schema version is from a later build", raw);
 
   if (raw.type === "ready") return { type: "ready", version: raw.version };
+
+  if (raw.type === "visibility") {
+    // Not coerced: anything but a boolean here means the sender and this build
+    // disagree about the message, and guessing which way would stop the panel
+    // on a truthy string.
+    if (typeof raw.visible !== "boolean")
+      return reject("visibility carries no state", raw);
+    return { type: "visibility", version: raw.version, visible: raw.visible };
+  }
 
   if (raw.type !== "analysis") return reject("unknown message type", raw);
 

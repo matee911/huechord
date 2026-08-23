@@ -1,7 +1,7 @@
 import * as photoshop from "./photoshop";
 import { uxp } from "../globals";
 import * as uxpLib from "./uxp";
-import { handleWebviewMessage } from "../uxp/palette-publisher";
+import { handleWebviewMessage } from "../uxp/webview-inbox";
 
 const hostName =
   uxp?.host?.name.toLowerCase().replace(/\s/g, "") || ("" as string);

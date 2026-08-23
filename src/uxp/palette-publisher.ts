@@ -1,6 +1,5 @@
 import { logger } from "../lib/logger";
 import {
-  parseBridgeMessage,
   analysisMessage,
   type AnalysisMessage,
   type BridgeMessage,
@@ -57,10 +56,8 @@ export const disconnectWebview = (): void => {
   pending = undefined;
 };
 
-/** Handles anything the WebView sends back over the bridge. */
-export const handleWebviewMessage = (raw: unknown): void => {
-  if (parseBridgeMessage(raw)?.type !== "ready") return;
-
+/** Records the WebView's handshake and releases anything held for it. */
+export const markWebviewReady = (): void => {
   webviewReady = true;
   flush();
 };

@@ -3,6 +3,7 @@ import { webviewInitHost } from "./webview-setup-host";
 import { logger } from "./lib/logger";
 import { startPixelPipeline } from "./uxp/pixel-pipeline";
 import { connectWebview, disconnectWebview } from "./uxp/palette-publisher";
+import { listenForPanelVisibility } from "./uxp/webview-inbox";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- required by TS to augment the global JSX namespace
@@ -48,7 +49,30 @@ export const App = () => {
     };
   }, [webviewUI]);
 
-  useEffect(() => startPixelPipeline(), []);
+  // Tied to the panel being on screen rather than to this component's lifetime.
+  // The React tree is mounted once, when the plugin loads, and closing the
+  // panel does not unmount it -- a pipeline stopped on unmount would in
+  // practice never stop, and would keep reading the user's document on a timer
+  // for the rest of the session.
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+
+    const unsubscribe = listenForPanelVisibility((visible) => {
+      // The state can repeat: it is sent once at the handshake and again on
+      // every visibilitychange, and not every one of those is a transition.
+      if (visible) stop ??= startPixelPipeline();
+      else {
+        stop?.();
+        stop = undefined;
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      stop?.();
+      stop = undefined;
+    };
+  }, []);
 
   return (
     <>
