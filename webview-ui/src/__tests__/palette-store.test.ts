@@ -28,6 +28,7 @@ const aHarmony = (type: HarmonyMatch["type"]): HarmonyMatch => ({
   type,
   colorIndices: [0],
   maxDeviation: 0,
+  nearMiss: null,
 });
 
 beforeEach(() => {

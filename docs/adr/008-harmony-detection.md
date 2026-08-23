@@ -1,6 +1,6 @@
 # ADR-008: Harmony Is Detected, Not Scored
 
-**Status**: Accepted
+**Status**: Superseded by [ADR-009](009-near-miss-harmony.md)
 **Date**: 2026-08-18
 
 ## Context

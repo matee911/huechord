@@ -95,6 +95,22 @@ $reserved-height: $panel-padding * 2 + $row-gap * 2 + $palette-bar-height +
   stroke-width: 1.5;
 }
 
+// A relationship the frame has not quite made. Dashed rather than faded: a
+// fainter solid line reads as a weaker claim about the same thing, where a
+// broken one reads as the thing itself being incomplete.
+.harmony-shape.is-near {
+  stroke-dasharray: 6 5;
+}
+
+// The color the shape is waiting on. A ring around it rather than a change to
+// the dot, so the color it reports stays exactly what it is.
+.wheel-dot.is-out-of-place {
+  stroke: var(--uxp-host-text-color, #ffffff);
+  stroke-opacity: 0.9;
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
 .harmony-shape-shadow {
   fill: none;
   stroke: rgba(0, 0, 0, 0.55);

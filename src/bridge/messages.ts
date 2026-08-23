@@ -15,7 +15,7 @@ import { logger } from "../lib/logger";
 // Bumped when an existing variant's shape changes in a way an older receiver
 // would misread. Adding a new `type` does not need a bump; the discriminant
 // already tells an older receiver it doesn't know the message.
-export const BRIDGE_VERSION = 2;
+export const BRIDGE_VERSION = 3;
 
 // The most colors an analysis message may carry. Deliberately a property of the
 // contract rather than an import from the extractor: the WebView would then
@@ -147,6 +147,20 @@ const isDominantColor = (value: unknown): value is DominantColor =>
  * read straight into the geometry that draws the shape, so one out of range is
  * a vertex at `cx="undefined"` -- a shape that silently loses a corner.
  */
+// Either absent-and-null, or an object naming one of the shape's own colors.
+// Checked against `colorIndices` rather than against the palette: a near miss
+// points at the color to move, and one outside the shape is not that.
+const isNearMiss = (value: unknown, colorIndices: number[]): boolean => {
+  if (value === null) return true;
+  if (!isRecord(value)) return false;
+  const { outlierIndex } = value;
+  return (
+    isFiniteNumber(outlierIndex) &&
+    Number.isInteger(outlierIndex) &&
+    colorIndices.includes(outlierIndex)
+  );
+};
+
 const isHarmony = (
   value: unknown,
   colorCount: number,
@@ -174,13 +188,20 @@ const isHarmony = (
   // square arrives as four references to one dot and is drawn as a point.
   if (new Set(indices).size !== indices.length) return false;
 
-  return indices.every(
-    (index) =>
-      isFiniteNumber(index) &&
-      Number.isInteger(index) &&
-      index >= 0 &&
-      index < colorCount,
-  );
+  if (
+    !indices.every(
+      (index) =>
+        isFiniteNumber(index) &&
+        Number.isInteger(index) &&
+        index >= 0 &&
+        index < colorCount,
+    )
+  )
+    return false;
+
+  // Last, because it is checked against the indices above: a malformed shape
+  // would otherwise be rejected for the wrong reason.
+  return isNearMiss(value.nearMiss, indices as number[]);
 };
 
 const reject = (reason: string, raw: unknown): null => {

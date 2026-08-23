@@ -60,7 +60,12 @@ export const harmonyLabel = (harmony: HarmonyMatch | null): string => {
   // Monochromatic is the one harmony with no shape to draw, so the label has
   // to carry what the wheel cannot: without the qualifier, a named harmony and
   // an empty wheel read as a shape that failed to render.
-  return harmony.type === "monochromatic" ? `${name} — one hue` : name;
+  if (harmony.type === "monochromatic") return `${name} — one hue`;
+
+  // "Close to" rather than the name alone, and no number after it: the dashed
+  // shape and the marked dot say which way to move without claiming a
+  // precision the pipeline does not have. See ADR-009.
+  return harmony.nearMiss ? `Close to ${harmony.type.replace("-", " ")}` : name;
 };
 
 /**

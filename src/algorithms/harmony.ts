@@ -41,6 +41,14 @@ const TEMPLATES: readonly (readonly [HarmonyType, number[]])[] = [
 export const TOLERANCE_DEGREES = 10;
 
 /**
+ * How far a template may miss and still be worth mentioning: twice as far as a
+ * harmony is allowed to. Deliberately expressed against the tolerance rather
+ * than as its own number -- "twice what still counts" is a rule someone can
+ * argue with, where a bare 20 is a number nobody can. See ADR-009.
+ */
+export const NEAR_TOLERANCE_DEGREES = TOLERANCE_DEGREES * 2;
+
+/**
  * The share of the image a color needs before it can take part. Without it a
  * speck of accent color closes a harmony the frame does not show — and with a
  * yes/no answer that speck decides whether anything is drawn at all.
@@ -123,17 +131,30 @@ const candidates = (colors: DominantColor[]): Candidate[] =>
  * half the spread between them. Anchoring an arm on a color instead would mean
  * a palette nudged by a degree loses a harmony that a worse-fitting one keeps.
  */
+// The narrowest gap between two arms of any template here. It bounds how wide
+// the pairing may reach: past half of it, one color would be in range of two
+// arms and which one claimed it would come down to iteration order.
+const MIN_ARM_GAP = 60;
+
 // How far from a color an arm may sit while the pairing is being worked out.
-// Twice the tolerance, because the placement that finally counts can be a
-// tolerance away from any one color -- and arms are at least sixty degrees
-// apart, so even at this width no color is in reach of two of them.
-const SEARCH_WINDOW = TOLERANCE_DEGREES * 2;
+// Twice the limit in force, because the placement that finally counts can be a
+// limit away from any one color.
+const searchWindow = (limit: number): number =>
+  Math.min(limit * 2, MIN_ARM_GAP / 2);
+
+interface TemplateMatch {
+  colorIndices: number[];
+  maxDeviation: number;
+  /** The color furthest from where the template wants it. */
+  outlierIndex: number;
+}
 
 const matchTemplate = (
   pool: Candidate[],
   offsets: number[],
-): { colorIndices: number[]; maxDeviation: number } | null => {
-  let best: { colorIndices: number[]; maxDeviation: number } | null = null;
+  limit: number,
+): TemplateMatch | null => {
+  let best: TemplateMatch | null = null;
 
   for (const base of pool) {
     const taken = new Set<number>();
@@ -154,7 +175,7 @@ const matchTemplate = (
         }
       }
 
-      if (!nearest || nearestDistance > SEARCH_WINDOW) break;
+      if (!nearest || nearestDistance > searchWindow(limit)) break;
       taken.add(nearest.index);
       colorIndices.push(nearest.index);
       misses.push(signedDistance(nearest.hue, arm));
@@ -166,9 +187,26 @@ const matchTemplate = (
     // half the spread away from its arm, which is the least the worst of them
     // can be.
     const maxDeviation = (Math.max(...misses) - Math.min(...misses)) / 2;
-    if (maxDeviation > TOLERANCE_DEGREES) continue;
+    if (maxDeviation > limit) continue;
+
+    // Measured from the median of the misses, not from the middle of their
+    // range: with two colors on their arms and one well off it, every miss is
+    // the same distance from the midpoint and the odd one out disappears. The
+    // median sits on the colors that agree, which is what the stray one is
+    // stray from.
+    const median = [...misses].sort((a, b) => a - b)[
+      Math.floor(misses.length / 2)
+    ];
+    const worst = misses.reduce(
+      (furthest, miss, at) =>
+        Math.abs(miss - median) > Math.abs(misses[furthest] - median)
+          ? at
+          : furthest,
+      0,
+    );
+
     if (!best || maxDeviation < best.maxDeviation)
-      best = { colorIndices, maxDeviation };
+      best = { colorIndices, maxDeviation, outlierIndex: colorIndices[worst] };
   }
 
   return best;
@@ -229,6 +267,9 @@ export const detectHarmony = (colors: DominantColor[]): HarmonyMatch | null => {
       type: "monochromatic",
       colorIndices: ordered.map(({ index }) => index),
       maxDeviation: span / 2,
+      // Span rules, not templates: an arc that is nearly narrow enough is just
+      // a wider arc, and there is no vertex to move a color towards.
+      nearMiss: null,
     };
 
   // Neighbouring hues, however many and however spaced. Ordered along the arc
@@ -239,8 +280,28 @@ export const detectHarmony = (colors: DominantColor[]): HarmonyMatch | null => {
       type: "analogous",
       colorIndices: ordered.map(({ index }) => index),
       maxDeviation: span / 2,
+      nearMiss: null,
     };
 
+  // Exact first, and only then loosely. Run together, a near-miss triad could
+  // outrank a clean complementary on deviation alone and the panel would hedge
+  // about a frame that is not in doubt.
+  return (
+    bestTemplate(pool, TOLERANCE_DEGREES) ??
+    bestTemplate(pool, NEAR_TOLERANCE_DEGREES, true)
+  );
+};
+
+/**
+ * The template that fits the pool best inside `limit`, or null when none does.
+ * `loose` says the caller is past the ordinary tolerance, which is what makes
+ * the answer a near miss rather than a harmony.
+ */
+const bestTemplate = (
+  pool: Candidate[],
+  limit: number,
+  loose = false,
+): HarmonyMatch | null => {
   let best: HarmonyMatch | null = null;
 
   for (const [type, offsets] of TEMPLATES) {
@@ -249,9 +310,16 @@ export const detectHarmony = (colors: DominantColor[]): HarmonyMatch | null => {
     // It also means every template still in the running has the same number of
     // arms, so the only thing left to choose between them is how well they fit.
     if (offsets.length !== pool.length) continue;
-    const match = matchTemplate(pool, offsets);
-    if (match && (!best || match.maxDeviation < best.maxDeviation))
-      best = { type, ...match };
+    const match = matchTemplate(pool, offsets, limit);
+    if (!match) continue;
+
+    const { outlierIndex, ...shape } = match;
+    const candidate: HarmonyMatch = {
+      type,
+      ...shape,
+      nearMiss: loose ? { outlierIndex } : null,
+    };
+    if (!best || candidate.maxDeviation < best.maxDeviation) best = candidate;
   }
 
   return best;

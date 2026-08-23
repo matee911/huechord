@@ -19,10 +19,11 @@ const aColor = (h: number, weight: number): DominantColor => ({
   weight,
 });
 
-const aHarmony = (): HarmonyMatch => ({
+const aHarmony = (nearMiss: HarmonyMatch["nearMiss"] = null): HarmonyMatch => ({
   type: "triadic",
   colorIndices: [0, 1, 2],
   maxDeviation: 7,
+  nearMiss,
 });
 
 const mockLogger = (): Logger => ({
@@ -423,5 +424,60 @@ describe("parseBridgeMessage rejects", () => {
     if (message) accepted.push(message);
 
     expect(accepted).toEqual([]);
+  });
+
+  it("accepts a harmony the frame only comes close to", () => {
+    const harmony = aHarmony({ outlierIndex: 1 });
+
+    expect(
+      parseBridgeMessage(
+        analysisMessage(
+          [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
+          harmony,
+          1,
+        ),
+      ),
+    ).toEqual(
+      analysisMessage(
+        [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
+        harmony,
+        1,
+      ),
+    );
+  });
+
+  // The outlier is the color to move, so it has to be one the shape runs
+  // through. One outside it points the retoucher at a dot the shape does not
+  // touch, which is worse than saying nothing.
+  it.each([
+    ["an outlier outside the shape", { outlierIndex: 7 }],
+    ["a fractional outlier", { outlierIndex: 1.5 }],
+    ["no outlier at all", {}],
+    ["an outlier that is not a number", { outlierIndex: "1" }],
+  ])("rejects a near miss with %s", (_case, nearMiss) => {
+    expect(
+      parseBridgeMessage(
+        analysisMessage(
+          [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
+          aHarmony(nearMiss as { outlierIndex: number }),
+          1,
+        ),
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects a harmony with no near-miss field at all", () => {
+    const harmony = { ...aHarmony() } as Partial<HarmonyMatch>;
+    delete harmony.nearMiss;
+
+    expect(
+      parseBridgeMessage(
+        analysisMessage(
+          [aColor(0, 0.4), aColor(120, 0.3), aColor(240, 0.3)],
+          harmony as HarmonyMatch,
+          1,
+        ),
+      ),
+    ).toBeNull();
   });
 });

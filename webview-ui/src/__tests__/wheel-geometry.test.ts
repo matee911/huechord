@@ -99,7 +99,12 @@ describe("swatchWidths", () => {
 describe("harmonyLabel", () => {
   it("names the harmony that was found", () => {
     expect(
-      harmonyLabel({ type: "triadic", colorIndices: [], maxDeviation: 0 }),
+      harmonyLabel({
+        type: "triadic",
+        colorIndices: [],
+        maxDeviation: 0,
+        nearMiss: null,
+      }),
     ).toBe("Triadic");
   });
 
@@ -109,8 +114,33 @@ describe("harmonyLabel", () => {
         type: "split-complementary",
         colorIndices: [],
         maxDeviation: 0,
+        nearMiss: null,
       }),
     ).toBe("Split-complementary");
+  });
+
+  // "Close to" and no number: the dashed shape and the marked dot say which
+  // way to move without claiming a precision the pipeline does not have.
+  it("says a frame is only close when the shape does not quite hold", () => {
+    expect(
+      harmonyLabel({
+        type: "triadic",
+        colorIndices: [0, 1, 2],
+        maxDeviation: 14,
+        nearMiss: { outlierIndex: 2 },
+      }),
+    ).toBe("Close to triadic");
+  });
+
+  it("keeps a hyphenated harmony readable when it is only close", () => {
+    expect(
+      harmonyLabel({
+        type: "split-complementary",
+        colorIndices: [0, 1, 2],
+        maxDeviation: 14,
+        nearMiss: { outlierIndex: 1 },
+      }),
+    ).toBe("Close to split complementary");
   });
 
   it("says a monochromatic palette is one hue, since nothing is drawn", () => {
@@ -119,6 +149,7 @@ describe("harmonyLabel", () => {
         type: "monochromatic",
         colorIndices: [0, 1],
         maxDeviation: 4,
+        nearMiss: null,
       }),
     ).toBe("Monochromatic — one hue");
   });
@@ -141,7 +172,12 @@ describe("harmonyShape", () => {
     const colors = [at(0), at(90), at(180)];
     const points = harmonyShape(
       colors,
-      { type: "complementary", colorIndices: [2, 0], maxDeviation: 0 },
+      {
+        type: "complementary",
+        colorIndices: [2, 0],
+        maxDeviation: 0,
+        nearMiss: null,
+      },
       100,
     );
 
@@ -157,7 +193,12 @@ describe("harmonyShape", () => {
     expect(
       harmonyShape(
         [at(0), at(8), at(16)],
-        { type: "monochromatic", colorIndices: [0, 1, 2], maxDeviation: 8 },
+        {
+          type: "monochromatic",
+          colorIndices: [0, 1, 2],
+          maxDeviation: 8,
+          nearMiss: null,
+        },
         100,
       ),
     ).toBeNull();

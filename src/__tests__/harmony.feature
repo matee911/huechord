@@ -24,20 +24,22 @@ Feature: Harmony detection
     When harmony detection runs
     Then the harmony is complementary
 
-  Scenario: Past the tolerance there is no harmony
+  Scenario: Past the tolerance the pair is only close
     Given dominant colors at hues 0 and 159
     When harmony detection runs
-    Then no harmony is reported
+    Then the harmony is complementary
+    And the frame is only close to it
 
   Scenario: The template that fits tightest is the one reported
     Given dominant colors at hues 0, 71, 180 and 251
     When harmony detection runs
     Then the harmony is tetradic
 
-  Scenario: A shape stretched out of proportion is not that shape
+  Scenario: A shape stretched out of proportion is close, not exact
     Given dominant colors at hues 0, 132 and 228
     When harmony detection runs
-    Then no harmony is reported
+    Then the harmony is triadic
+    And the frame is only close to it
 
   Scenario: Triadic harmony detected
     Given dominant colors at hues 0, 120 and 240
@@ -159,3 +161,21 @@ Feature: Harmony detection
     When harmony detection runs
     Then the harmony is triadic
     And it is formed by 3 colors
+
+  Scenario: One color short of a triad
+    Given dominant colors at hues 0, 120 and 268
+    When harmony detection runs
+    Then the harmony is triadic
+    And the frame is only close to it
+    And the color at position 2 is named as the one out of place
+
+  Scenario: A frame near nothing still claims nothing
+    Given dominant colors at hues 0, 60 and 150
+    When harmony detection runs
+    Then no harmony is reported
+
+  Scenario: A shape that fits exactly is not called close
+    Given dominant colors at hues 0, 120 and 240
+    When harmony detection runs
+    Then the harmony is triadic
+    And the frame is not merely close to it

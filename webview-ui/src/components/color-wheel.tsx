@@ -16,6 +16,19 @@ const MAX_DOT_RADIUS = 16;
 // rim instead of being sliced in half by the edge of the viewBox.
 const WHEEL_RADIUS = VIEWPORT_RADIUS - MAX_DOT_RADIUS;
 
+// Spoken to a screen-reader user, who gets none of the dashes and marks the
+// sighted panel uses to say the same thing.
+const wheelLabel = (
+  colorCount: number,
+  harmony: HarmonyMatch | null,
+): string => {
+  const wheel = `Color wheel with ${colorCount} dominant colors`;
+  if (!harmony) return wheel;
+  return harmony.nearMiss
+    ? `${wheel}, close to a ${harmony.type} harmony`
+    : `${wheel}, forming a ${harmony.type} harmony`;
+};
+
 export const ColorWheel = ({
   colors,
   harmony,
@@ -32,15 +45,15 @@ export const ColorWheel = ({
       className="wheel-dots"
       viewBox={`${-VIEWPORT_RADIUS} ${-VIEWPORT_RADIUS} ${VIEWPORT_RADIUS * 2} ${VIEWPORT_RADIUS * 2}`}
       role="img"
-      aria-label={
-        harmony
-          ? `Color wheel with ${colors.length} dominant colors, forming a ${harmony.type} harmony`
-          : `Color wheel with ${colors.length} dominant colors`
-      }
+      aria-label={wheelLabel(colors.length, harmony)}
     >
       <HarmonyOverlay colors={colors} harmony={harmony} radius={WHEEL_RADIUS} />
       {colors.map((color, index) => {
         const { x, y } = dotPosition(color.hsl.h, color.hsl.s, WHEEL_RADIUS);
+        // The one color holding a near-miss shape open. Marked rather than
+        // named in prose: the retoucher is looking at the wheel, and "the one
+        // at 268 degrees" is not something anyone reads off a wheel.
+        const outOfPlace = harmony?.nearMiss?.outlierIndex === index;
         return (
           <circle
             // Position and color both move every update, so neither can
@@ -50,7 +63,7 @@ export const ColorWheel = ({
             cy={y}
             r={dotRadius(color.weight, MIN_DOT_RADIUS, MAX_DOT_RADIUS)}
             fill={cssColor(color.rgb)}
-            className="wheel-dot"
+            className={outOfPlace ? "wheel-dot is-out-of-place" : "wheel-dot"}
           />
         );
       })}

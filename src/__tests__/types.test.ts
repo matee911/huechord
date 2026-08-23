@@ -36,6 +36,7 @@ describe("types", () => {
       type: "triadic",
       colorIndices: [0, 2, 3],
       maxDeviation: 7,
+      nearMiss: null,
     };
     expect(match.type).toBe("triadic");
     expect(match.colorIndices).toHaveLength(3);

@@ -28,6 +28,9 @@ export const HarmonyOverlay = ({
   // Two points are drawn by SVG as a single segment rather than as a degenerate
   // shape, so one element covers a complementary pair as well as a square.
   const outline = points.map(({ x, y }) => `${x},${y}`).join(" ");
+  // A shape the frame only comes close to is drawn as one: broken, because the
+  // relationship is not quite there, in the same place a solid one would be.
+  const shape = harmony?.nearMiss ? "harmony-shape is-near" : "harmony-shape";
 
   return (
     <g aria-hidden="true">
@@ -35,7 +38,7 @@ export const HarmonyOverlay = ({
           where it crosses the desaturated center of the wheel, the way the
           dots carry their own dark stroke for the same reason. */}
       <polygon className="harmony-shape-shadow" points={outline} />
-      <polygon className="harmony-shape" points={outline} />
+      <polygon className={shape} points={outline} />
     </g>
   );
 };

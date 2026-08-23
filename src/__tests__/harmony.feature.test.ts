@@ -94,12 +94,15 @@ describeFeature(feature, ({ Scenario }) => {
   );
 
   Scenario(
-    "Past the tolerance there is no harmony",
-    ({ Given, When, Then }) => {
+    "Past the tolerance the pair is only close",
+    ({ Given, When, Then, And }) => {
       Given("dominant colors at hues 0 and 159", givenHues([0, 159]));
       When("harmony detection runs", detect);
-      Then("no harmony is reported", () => {
-        expect(harmony).toBeNull();
+      Then("the harmony is complementary", () => {
+        expect(harmony?.type).toBe("complementary");
+      });
+      And("the frame is only close to it", () => {
+        expect(harmony?.nearMiss).not.toBeNull();
       });
     },
   );
@@ -121,15 +124,18 @@ describeFeature(feature, ({ Scenario }) => {
   );
 
   Scenario(
-    "A shape stretched out of proportion is not that shape",
-    ({ Given, When, Then }) => {
-      // Each of these is close enough to a split-complementary arm to be paired
-      // with one, but they miss in opposite directions -- no placement of the
-      // shape brings all three inside the tolerance at once.
+    "A shape stretched out of proportion is close, not exact",
+    ({ Given, When, Then, And }) => {
+      // The two off-arm colors miss in opposite directions, so no placement
+      // brings all three inside the ordinary tolerance -- which is what makes
+      // this close rather than exact, per ADR-009.
       Given("dominant colors at hues 0, 132 and 228", givenHues([0, 132, 228]));
       When("harmony detection runs", detect);
-      Then("no harmony is reported", () => {
-        expect(harmony).toBeNull();
+      Then("the harmony is triadic", () => {
+        expect(harmony?.type).toBe("triadic");
+      });
+      And("the frame is only close to it", () => {
+        expect(harmony?.nearMiss).not.toBeNull();
       });
     },
   );
@@ -439,6 +445,49 @@ describeFeature(feature, ({ Scenario }) => {
       When("harmony detection runs", detect);
       Then("detection completed in under 5 milliseconds", () => {
         expect(durationMs).toBeLessThan(5);
+      });
+    },
+  );
+
+  // Two colors on their arms and one well off it: the one that is off is the
+  // one whose movement closes the shape, and it is the one the panel marks.
+  Scenario("One color short of a triad", ({ Given, When, Then, And }) => {
+    Given("dominant colors at hues 0, 120 and 268", givenHues([0, 120, 268]));
+    When("harmony detection runs", detect);
+    Then("the harmony is triadic", () => {
+      expect(harmony?.type).toBe("triadic");
+    });
+    And("the frame is only close to it", () => {
+      expect(harmony?.nearMiss).not.toBeNull();
+    });
+    And("the color at position 2 is named as the one out of place", () => {
+      expect(harmony?.nearMiss?.outlierIndex).toBe(2);
+    });
+  });
+
+  // The rule ADR-008 was written to protect, and ADR-009 keeps: a frame with
+  // no color relationship claims nothing, rather than the nearest something.
+  Scenario(
+    "A frame near nothing still claims nothing",
+    ({ Given, When, Then }) => {
+      Given("dominant colors at hues 0, 60 and 150", givenHues([0, 60, 150]));
+      When("harmony detection runs", detect);
+      Then("no harmony is reported", () => {
+        expect(harmony).toBeNull();
+      });
+    },
+  );
+
+  Scenario(
+    "A shape that fits exactly is not called close",
+    ({ Given, When, Then, And }) => {
+      Given("dominant colors at hues 0, 120 and 240", givenHues([0, 120, 240]));
+      When("harmony detection runs", detect);
+      Then("the harmony is triadic", () => {
+        expect(harmony?.type).toBe("triadic");
+      });
+      And("the frame is not merely close to it", () => {
+        expect(harmony?.nearMiss).toBeNull();
       });
     },
   );
