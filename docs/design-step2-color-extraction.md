@@ -81,7 +81,7 @@ sequenceDiagram
     participant Img as imaging.ts
     participant Log as logger
 
-    box rgb(183, 247, 192) Nowe moduły domenowe
+    box rgb(183, 247, 192) New domain modules
     participant Ext as color-extraction.ts
     participant Conv as color-convert.ts
     end
@@ -91,7 +91,7 @@ sequenceDiagram
     Pipe->>Img: acquirePixels()
 
     rect rgb(191, 224, 255)
-    Note right of Img: ZMIANA: getData() wewnątrz modal scope,<br/>bufor wraca do wywołującego zamiast być odrzucony
+    Note right of Img: CHANGED: getData() runs inside the modal scope,<br/>the buffer goes back to the caller instead of being discarded
     Img->>PS: executeAsModal(getPixels + getData)
     PS-->>Img: PhotoshopImageData + Uint8Array
     Img->>PS: imageData.dispose()
@@ -99,15 +99,15 @@ sequenceDiagram
     end
 
     rect rgb(183, 247, 192)
-    Note right of Pipe: NOWE: ekstrakcja poza modal scope
+    Note right of Pipe: NEW: extraction happens outside the modal scope
     Pipe->>Ext: extractDominantColors(data, channels)
-    Ext->>Ext: odfiltruj alpha === 0, spakuj do [r,g,b][]
+    Ext->>Ext: drop alpha === 0, pack into [r,g,b][]
     Ext->>Ext: quantize(pixels, 8) → cmap
-    Ext->>Ext: drugi przebieg: cmap.map(px) → liczność klastrów
-    Ext->>Conv: rgbToHsl(rgb) dla każdego koloru
+    Ext->>Ext: second pass: cmap.map(px) → cluster populations
+    Ext->>Conv: rgbToHsl(rgb) for every color
     Conv-->>Ext: HSLColor
-    Ext-->>Pipe: DominantColor[] posortowane malejąco po weight
-    Pipe->>Log: "Extracted N colors in Xms" + paleta
+    Ext-->>Pipe: DominantColor[] sorted by weight, descending
+    Pipe->>Log: "Extracted N colors in Xms" + palette
     end
 ```
 

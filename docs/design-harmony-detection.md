@@ -98,13 +98,13 @@ sequenceDiagram
     Alg-->>Pipe: DominantColor[]
 
     rect rgb(183, 247, 192)
-    Note right of Pipe: NOWE: detekcja harmonii, logowana wzgledem budzetu 5ms
+    Note right of Pipe: NEW: harmony detection, logged against a 5 ms budget
     Pipe->>Alg: detectHarmony(colors)
     Alg-->>Pipe: HarmonyMatch | null
     end
 
     rect rgb(191, 224, 255)
-    Note right of Pipe: ZMIANA: paleta i harmonia ida jedna atomowa wiadomoscia
+    Note right of Pipe: CHANGED: palette and harmony travel as one atomic message
     Pipe->>Pub: publishAnalysis(colors, harmony)
     Pub->>WV: analysis message
     WV->>WV: render wheel + shape + label

@@ -85,18 +85,18 @@ JSON round-trip test guards it.
 sequenceDiagram
     participant PS as Photoshop
     participant Pipe as pixel-pipeline (UXP)
-    box rgb(183, 247, 192) Nowy uczestnik
+    box rgb(183, 247, 192) New participant
     participant Pub as palette-publisher (UXP)
     end
     participant WV as WebView app
-    box rgb(183, 247, 192) Nowy uczestnik
+    box rgb(183, 247, 192) New participant
     participant UI as ColorWheel + PaletteBar
     end
 
     rect rgb(183, 247, 192)
-    Note right of WV: NOWE: ready-handshake — bez niego pierwsza paleta ginie w starcie WebView
+    Note right of WV: NEW: ready handshake — without it the first palette is lost while the WebView boots
     WV->>Pub: ready (v1)
-    Pub-->>WV: palette (v1, ostatnia zbuforowana, jeśli jest)
+    Pub-->>WV: palette (v1, the one held back, if there is one)
     end
 
     PS->>Pipe: document changed (debounce 400ms)
@@ -105,7 +105,7 @@ sequenceDiagram
     Pipe->>Pipe: extractDominantColors()
 
     rect rgb(191, 224, 255)
-    Note right of Pipe: ZMIANA: paleta szła tylko do loggera, teraz też do publishera
+    Note right of Pipe: CHANGED: the palette went only to the logger, now it goes to the publisher too
     Pipe->>Pub: publishAnalysis(colors, harmony)
     Pub->>WV: palette (v1)
     WV->>WV: parseBridgeMessage()
@@ -113,7 +113,7 @@ sequenceDiagram
     end
 
     rect rgb(183, 247, 192)
-    Note right of WV: NOWE: malformed/nieznany type/zła wersja — log przez logger, brak crashu
+    Note right of WV: NEW: malformed / unknown type / wrong version — logged, never a crash
     WV->>WV: parseBridgeMessage() → null
     end
 ```
