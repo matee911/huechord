@@ -112,72 +112,38 @@ docs: update algorithm analysis with octree option
 
 ## CI
 
-[redacted]
+CI runs on a GitHub-hosted `ubuntu-latest` runner. `.github/workflows/ci.yml` runs the same five checks
+as `yarn verify` — lint, format, typecheck, test, build — as separate steps, so a failure names itself
+in the job list rather than hiding inside one aggregate command.
+
+Nothing here needs macOS or Photoshop. Every check is plain Node, and the lockfiles carry each platform
+variant of `esbuild`, so `--frozen-lockfile` resolves the Linux binary without touching `yarn.lock`.
 
 [redacted]
 
-### Running it
-
-|                       |                                                              |
-| --------------------- | ------------------------------------------------------------ |
-[redacted]
-[redacted]
-| Status / start / stop | `[redacted] \| start \| stop`    |
-| Logs                  | `~/Library/Logs/actions.runner.<owner>-<repo>.<runner-name>` |
-
-It starts on login and runs in the background.
-
-### When CI appears stuck
-
-**An offline runner does not fail jobs — it queues them, indefinitely.** A workflow that never starts looks identical to one that is merely slow, and nothing on GitHub says why. Before investigating a change as the cause, check the runner is up:
-
-```bash
-[redacted]
-gh api repos/<owner>/<repo>/actions/runners --jq '.runners[] | "\(.name) \(.status)"'
-```
-
-Jobs can also fail for reasons that have nothing to do with the code: the runner downloads actions anonymously from `codeload.github.com`, so it is subject to whatever rate limit applies to that machine's IP. A `429 Too Many Requests` on `actions/checkout` is not a broken workflow.
+Worth writing down, because the reasoning is the kind that gets rediscovered the hard way.
 
 [redacted]
+[redacted]
+[redacted]
+[redacted]
+[redacted]. Not only through dependencies — `yarn lint`, `yarn typecheck` and
+`yarn test` load `eslint.config.js`, `vitest.config.ts` and every test file _from the branch under
+test_. The runner was not ephemeral either, and a second repository's runner shared the same account,
+so the blast radius was wider than one repo.
 
-### Accepted risk
-
+That was documented as a knowingly accepted risk, and the acceptance rested on the repo being private
+with a single collaborator. Making it public revokes exactly that: a fork's pull request turns into
 [redacted]
 
-Not only through dependencies. `yarn lint`, `yarn typecheck` and `yarn test` load `eslint.config.js`, `vitest.config.ts` and every test file _from the branch under test_ — code the PR author wrote. Lifecycle scripts from the dependency tree are a second path, and `--frozen-lockfile` pins versions without saying anything about a package that was already malicious when pinned. On a GitHub-hosted runner all of this would happen in a disposable VM.
-
-Two properties make the blast radius wider than one repo:
-
-- The runner is **not ephemeral**. `persist-credentials: false` keeps the git token out of `.git/config`, but nothing stops a run from writing a LaunchAgent, editing `~/.zshrc`, or poisoning the Yarn cache that the next run restores.
-- [redacted]
-
-### What it currently rests on
-
-1. The repo is private and has exactly one collaborator with push access.
-2. The job is skipped for pull requests from forks — see the `if:` condition in `.github/workflows/ci.yml`.
-3. The workflow token is `permissions: contents: read`.
-4. Checkout runs with `persist-credentials: false`.
-5. There are **no repository secrets or variables**. Nothing can be exfiltrated that is not already in the checkout.
-
-Points 2–4 are asserted by `src/__tests__/ci-workflow.test.ts`, so removing one fails the suite instead of quietly widening the exposure. Points 1 and 5 are not enforceable from the repo — they are the ones to re-check by hand.
-
-### What revokes it
-
-Any of these, not just the first:
+Public repositories get standard hosted runners at no charge, so the reason to accept the risk
+disappeared at the same moment the risk grew. The job now runs in a disposable VM, with a read-only
+token, no repository secrets, and no fork guard to maintain — a contributor's pull request is checked
+like anyone else's.
 
 [redacted]
-- **A collaborator with push access is added.** The fork guard does not help — their branch is in-repo, so it passes and runs.
-- **A repository secret is added.** Point 5 stops being true.
-- **Dependabot or Renovate is enabled.** Their pull requests come from in-repo branches, so they install and execute a bumped dependency before a human reads the diff.
-- **A second job or workflow is added without repeating the `if:` guard.** It is job-level, not workflow-level.
-
-Third-party actions are pinned to floating major tags (`actions/checkout@v4`), so a retagged upstream also executes here before any repo code runs. That is a standing exposure, not a trigger.
-
-### Mitigations considered and declined
-
-[redacted]
-
-The clean answer remains a GitHub-hosted runner; it is blocked on billing rather than on preference.
+stops being read-only, or if a step in `yarn verify` is missing from CI. The point is that going back
+has to be a decision someone writes down, not a line that slips in.
 
 ## Code Guidelines
 

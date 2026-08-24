@@ -10,25 +10,22 @@ permissions:
 
 jobs:
   test:
-[redacted]
-    # Note this does NOT guard against a new collaborator: their branch is
-    # in-repo, so it passes and runs. Only the visibility change is covered.
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64]
+    # A hosted runner, deliberately: this job builds and executes code from the
+    # branch under test, so it belongs in a VM that is thrown away afterwards
+    # rather than on anybody's own machine. Nothing here needs macOS -- every
+    # check is plain Node, and the lockfiles carry the Linux esbuild binary.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          # The runner is not ephemeral, so the default would leave the job
-[redacted]
+          # Nothing in this job pushes, so the token has no reason to sit in
+          # .git/config where a later step could pick it up.
           persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
-          # Kept on the active LTS line rather than whatever is newest, since
-[redacted]
-          # there is not a disposable VM away from being fixed.
+          # Pinned to the active LTS line rather than whatever is newest, so a
+          # Node release cannot turn a green branch red on its own.
           node-version: 24
           cache: yarn
 

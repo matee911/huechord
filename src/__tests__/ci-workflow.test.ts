@@ -11,15 +11,15 @@ const workflow = readFileSync(
   "utf8",
 );
 
-[redacted]
-// and CONTRIBUTING records that risk as knowingly accepted. These three
-// properties are what the acceptance rests on, so losing one has to fail here
-// rather than quietly widen the exposure.
+// This job checks out a branch and then runs that branch's own config files
+// and tests. On a hosted runner that is a disposable VM; on somebody's machine
+// it is arbitrary code execution as that user, which is what CI here used to
+// be. Going back has to fail a test rather than pass review as one changed
+// line — see the CI section of CONTRIBUTING for what it cost.
 describe("ci workflow", () => {
-  it("skips pull requests coming from a fork", () => {
-    expect(workflow).toContain(
-      "github.event.pull_request.head.repo.full_name == github.repository",
-    );
+  it("runs on a hosted runner, not on anybody's machine", () => {
+    expect(workflow).toContain("runs-on: ubuntu-latest");
+    expect(workflow).not.toContain("self-hosted");
   });
 
   it("gives the job a read-only token", () => {
