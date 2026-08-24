@@ -1,0 +1,3 @@
+# buycoffee.to is a Polish service and has no key of its own, so it goes under
+# `custom` -- `buy_me_a_coffee` is a different platform (buymeacoffee.com).
+custom: ["https://buycoffee.to/matee.photo"]
