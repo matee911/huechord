@@ -89,9 +89,16 @@ const analyzeDocument = async (
   const detectionMs = performance.now() - detectionStart;
   const detectionTime = detectionMs.toFixed(2);
 
+  // The console says which of the two it is, the same way the panel does. A
+  // bare type here reads as a firm answer, and the difference between "this is
+  // a triad" and "this is nearly one" is the whole point of the distinction.
+  const shape = harmony
+    ? `${harmony.nearMiss ? "close to " : ""}${harmony.type}`
+    : "";
+
   logger.info(
     harmony
-      ? `Harmony: ${harmony.type} across colors ${harmony.colorIndices.join(", ")} in ${detectionTime}ms`
+      ? `Harmony: ${shape} across colors ${harmony.colorIndices.join(", ")} in ${detectionTime}ms`
       : `No harmony in this frame, decided in ${detectionTime}ms`,
   );
   if (detectionMs > HARMONY_BUDGET_MS)

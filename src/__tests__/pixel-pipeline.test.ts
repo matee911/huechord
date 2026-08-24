@@ -203,6 +203,32 @@ describe("startPixelPipeline", () => {
     expect(loggerWarn).not.toHaveBeenCalled();
   });
 
+  // The console is where this is debugged, and a bare type there reads as a
+  // firm answer to a frame the panel is hedging about.
+  it("says in the log when the frame is only close to a harmony", async () => {
+    listenForDocumentChanges.mockResolvedValue(
+      vi.fn().mockResolvedValue(undefined),
+    );
+    // Split-complementary arms are 0/150/210; the third color is 25 degrees
+    // past its own, which is a near miss rather than a shape.
+    acquisitionYields([
+      ...Array.from({ length: 20 }, () => [240, 0, 0, 255]),
+      ...Array.from({ length: 20 }, () => [0, 240, 120, 255]),
+      ...Array.from({ length: 20 }, () => [0, 20, 240, 255]),
+    ]);
+
+    startPixelPipeline();
+    await vi.waitFor(() => expect(listenForDocumentChanges).toHaveBeenCalled());
+    notifyDocumentChange();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+
+    await vi.waitFor(() =>
+      expect(loggerInfo).toHaveBeenCalledWith(
+        expect.stringContaining("Harmony: close to split-complementary"),
+      ),
+    );
+  });
+
   it("says so when detection overran its budget", async () => {
     const unsubscribe = vi.fn().mockResolvedValue(undefined);
     listenForDocumentChanges.mockResolvedValue(unsubscribe);
