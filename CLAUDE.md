@@ -1,4 +1,4 @@
-# Color Harmony Wheel — Photoshop UXP Plugin
+# Huechord — Photoshop UXP Plugin
 
 ## Project Overview
 

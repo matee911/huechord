@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to Color Harmony Wheel.
+Thanks for your interest in contributing to Huechord.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Thanks for your interest in contributing to Color Harmony Wheel.
 
 ```bash
 # 1. Clone & install — both workspaces, or the build in step 5 fails
-git clone <repo-url> && cd colors
+git clone <repo-url> && cd huechord
 yarn install
 (cd webview-ui && yarn install)
 

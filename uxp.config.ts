@@ -15,8 +15,8 @@ const extraPrefs = {
 // VITE_BOLT_MODE only after this module has already been imported and evaluated.
 const isDev = process.env.MODE === "dev";
 
-export const id = "com.colors.harmony-wheel";
-const name = "Color Harmony Wheel";
+export const id = "com.matee.huechord";
+const name = "Huechord";
 
 const manifest: UXP_Manifest = {
   id,

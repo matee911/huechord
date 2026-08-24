@@ -1,6 +1,6 @@
 # Project Structure
 
-Suggested directory layout for the Color Harmony Photoshop plugin, using Bolt UXP (Vite + React + TypeScript).
+Suggested directory layout for Huechord, using Bolt UXP (Vite + React + TypeScript).
 
 ## Directory Tree
 

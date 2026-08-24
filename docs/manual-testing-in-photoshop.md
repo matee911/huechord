@@ -49,7 +49,7 @@ Notes worth having up front:
   pixels, so halve any coordinate read off an image.
 - The first `do javascript` call raises a macOS permission dialog and blocks until someone answers it.
 - Reload the plugin with **Reload** in its row in UDT (raise the main window first). Reopen the panel
-  from **Plugins → Color Harmony Wheel → Color Harmony Wheel** — that entry is a toggle, so check the
+  from **Plugins → Huechord → Huechord** — that entry is a toggle, so check the
   window list instead of clicking blind. Photoshop's own theme cycles with Shift+F1 / Shift+F2.
 
 ## Reading numbers out of the UXP context
