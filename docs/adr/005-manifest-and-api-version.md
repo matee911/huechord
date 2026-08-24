@@ -26,8 +26,8 @@ Use **manifest v5** with **apiVersion 2**, targeting **PS 26.0+** (Photoshop 202
 ```json
 {
   "manifestVersion": 5,
-  "id": "com.colors.harmony-wheel",
-  "name": "Color Harmony Wheel",
+  "id": "com.matee.huechord",
+  "name": "Huechord",
   "version": "1.0.0",
   "main": "index.js",
   "host": [
@@ -41,7 +41,7 @@ Use **manifest v5** with **apiVersion 2**, targeting **PS 26.0+** (Photoshop 202
     {
       "type": "panel",
       "id": "mainPanel",
-      "label": { "default": "Color Harmony" },
+      "label": { "default": "Huechord" },
       "minimumSize": { "width": 280, "height": 300 },
       "maximumSize": { "width": 600, "height": 800 },
       "preferredDockedSize": { "width": 300, "height": 400 },
