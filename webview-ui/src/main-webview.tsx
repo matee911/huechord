@@ -54,7 +54,9 @@ export const App = () => {
           analyze" describes a file that is not open any more. */}
       <ColorWheel colors={shown} harmony={shownHarmony} />
       <PaletteBar colors={shown} />
-      <HarmonyLabel harmony={shownHarmony} />
+      {/* No harmony line either: "No harmony in this frame" under "Open a
+          document to analyze" is a claim about a frame that does not exist. */}
+      {state === "no-document" ? null : <HarmonyLabel harmony={harmony} />}
       <p className="panel-status">{panelStatus(colors.length, state)}</p>
     </main>
   );
