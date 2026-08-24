@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Same reasoning as CI: this builds and runs code from the tagged commit,
+    # so it belongs in a VM that is thrown away afterwards.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # `gh` authenticates from the environment, so nothing here needs the
+          # token left behind in .git/config.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+
+      - name: Install root dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Install webview-ui dependencies
+        run: yarn install --frozen-lockfile
+        working-directory: webview-ui
+
+      # Photoshop shows the manifest version, never the tag. If the two
+      # disagree, a user reporting a bug in "v0.2.0" is describing whatever
+      # package.json happened to say, and the release name is a lie nobody
+      # can see through from inside the app.
+      - name: Check the tag matches the plugin version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag ${GITHUB_REF_NAME} carries version ${tag}, package.json says ${pkg}" >&2
+            exit 1
+          fi
+
+      # The same gate a push has to pass. A tag is not a reason to ship
+      # something the branch would have been stopped for.
+      - name: Verify
+        run: yarn verify
+
+      - name: Package
+        run: yarn ccx
+
+      # The generated name is the plugin id, which tells a downloader nothing
+      # about what they are getting or which version it is.
+      - name: Name the package for a human
+        run: mv ccx/*.ccx "huechord-${GITHUB_REF_NAME}.ccx"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "huechord-${GITHUB_REF_NAME}.ccx" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes

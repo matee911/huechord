@@ -19,11 +19,11 @@ export default defineConfig({
   plugins: [uxp(config, mode), react()],
   build: {
     sourcemap: mode && ["dev", "build"].includes(mode) ? true : false,
-    // Deliberate for as long as this plugin is only ever loaded through UDT:
-    // a readable bundle is worth more than a smaller one while nobody is
-    // shipping it. Minifying cuts it by roughly two thirds, so turn it on for
-    // the packaging modes once builds actually go out to users.
-    minify: false,
+    // A readable bundle is worth more than a small one while the plugin is
+    // only ever loaded through UDT and the person reading it is the person who
+    // wrote it. Once it is packaged for someone else to install, nobody reads
+    // it and the download size is what they experience instead.
+    minify: mode === "package" || mode === "zip",
     emptyOutDir: !shouldNotEmptyDir,
     rollupOptions: {
       external: ["photoshop", "uxp", "fs", "os", "path", "process", "shell"],

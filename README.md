@@ -72,14 +72,15 @@ A few rules, all of them deliberate:
 
 ## Installing
 
-Huechord is not on Adobe Exchange yet. For now it runs through the UXP Developer Tool — see
-[CONTRIBUTING.md](CONTRIBUTING.md) for the setup, or build a `.ccx` yourself:
+Download the latest `.ccx` from [Releases](../../releases) and double-click it. Creative Cloud takes
+it from there, and the panel appears under **Plugins → Huechord**.
 
-```bash
-yarn install
-(cd webview-ui && yarn install)
-yarn ccx
-```
+Creative Cloud will say the plugin has not been verified by Adobe. That is what independent
+distribution looks like — Huechord is published here rather than through Adobe Exchange, and UXP
+plugins carry no signature to check.
+
+Nothing to build, no Node and no Yarn. Those are only needed to work on the plugin, not to run it —
+see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Status
 
