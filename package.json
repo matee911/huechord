@@ -2,6 +2,7 @@
   "name": "huechord",
   "private": true,
   "version": "0.0.1",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "cross-env MODE=dev vite build --watch",

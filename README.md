@@ -96,4 +96,4 @@ sample points are all in and verified in Photoshop. Error reporting is the piece
 
 ## License
 
-Not yet chosen.
+[MIT](LICENSE). Built on [Bolt UXP](https://hyperbrew.co/resources/bolt-uxp), also MIT.
