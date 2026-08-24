@@ -3,14 +3,29 @@
 **A Photoshop panel that tells you, while you grade, whether the frame's colors form a harmony —
 and which one.**
 
-Color harmony is the thing you are chasing during a color grade. The color wheel is how you check
-it. Huechord keeps that wheel open next to the image and keeps it honest: it reads the colors the
-photograph is actually made of, plots them, and names the harmony they form. When the frame is
-close to one but not on it, it says so and marks the color that is out of place.
-
-No button. You grade; the panel keeps up.
-
 <img src="docs/images/panel-triadic.png" alt="The Huechord panel docked in Photoshop, showing three dominant colors joined into a triangle on the color wheel, a weighted palette bar, and the label &quot;Triadic&quot;" width="362" />
+
+## The problem
+
+Photoshop shows you the image. It does not show you the image's palette.
+
+Color harmony — complementary, triadic, analogous — is a _relationship between hues_, and no panel in
+Photoshop puts that relationship in front of you while you work. Checking it by hand means dropping
+color samplers, reading RGB numbers off the Info panel, converting them to angles in your head, and
+deciding whether three of them really sit 120 degrees apart. Then you pull one curve and every number
+you just read is stale.
+
+So in practice the check does not happen. You grade by eye, and whether the frame actually lands on a
+harmony — or misses one by ten degrees, which is the interesting case — stays unanswered.
+
+## What Huechord does
+
+It keeps the wheel open beside the image and keeps it honest. It reads the colors the photograph is
+actually made of, plots them by hue and saturation, and names the harmony they form. When the frame
+is close to one but not on it, it says so and marks the color that is out of place — the one to move,
+and which way.
+
+No button, no re-sampling, no stale numbers. You grade; the panel keeps up.
 
 ## What it shows
 
