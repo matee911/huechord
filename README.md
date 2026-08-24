@@ -10,6 +10,8 @@ close to one but not on it, it says so and marks the color that is out of place.
 
 No button. You grade; the panel keeps up.
 
+<img src="docs/images/panel-triadic.png" alt="The Huechord panel docked in Photoshop, showing three dominant colors joined into a triangle on the color wheel, a weighted palette bar, and the label &quot;Triadic&quot;" width="362" />
+
 ## What it shows
 
 **The wheel.** Every dominant color in the frame is a dot. Its angle is the hue, its distance from
