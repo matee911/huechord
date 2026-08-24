@@ -33,6 +33,13 @@ const git = (cwd: string, ...args: string[]) =>
 const repoOnBranch = (branch: string) => {
   const dir = mkdtempSync(join(tmpdir(), "branch-guard-"));
   git(dir, "init", "--quiet", "--initial-branch", branch);
+  // A throwaway repo inherits no identity, and a fresh CI runner has no global
+  // one to fall back on -- git then refuses the commit and every test in this
+  // file fails in setup, naming an author instead of the behaviour under test.
+  // A developer machine hides this: git there derives an identity from the
+  // account when none is configured.
+  git(dir, "config", "user.email", "guard@example.invalid");
+  git(dir, "config", "user.name", "Branch Guard Test");
   git(dir, "commit", "--quiet", "--allow-empty", "-m", "root");
   return dir;
 };
