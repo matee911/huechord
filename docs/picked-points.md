@@ -6,18 +6,21 @@
   to the dominant colors the plugin found on its own.
 - The picking is Photoshop's own Color Sampler tool. The plugin adds no click target of its own,
   because it cannot: a UXP panel never sees a click on the canvas.
-- Picked colors are drawn as rings, never as dots, and never take part in harmony detection. They
-  are what the user asked about, not what the image is made of.
+- Picked colors are drawn as diamonds, never as dots, and never take part in harmony detection.
+  They are what the user asked about, not what the image is made of.
 
-## Not yet verified against a live host
+## What the live host confirmed, and what it did not
 
-Everything below is built on `Document.colorSamplers` as the installed type declarations describe
-it. **None of it has been run in Photoshop.** Three assumptions in particular are unconfirmed: that
-reading `.color` needs no modal scope, that a sampler over a transparent pixel really reports
-`NoColor`, and that the collection iterates the way this expects. The reader is defensive about all
-three — a shape check rather than a class-name check, a `try/catch` around the whole read, and an
-empty result on failure, so a host that will not answer costs the rings and not the palette. That is
-a design for being wrong, not evidence of being right.
+This was designed against `Document.colorSamplers` as the installed type declarations describe it,
+then run in Photoshop. Confirmed there: reading `.color` needs no modal scope, a sampler over a
+transparent pixel reports `NoColor`, and the collection iterates the way this expects.
+
+Two questions are still open, and the reader is defensive about both rather than answering them.
+What a `.color` getter that _hangs_ rather than throws would do to the tick is untested — a
+synchronous read has no timeout to give it. Whether the sampler honours the tool's Sample Size, or
+always reports a single pixel, is unknown. The shape check instead of a class-name check, the
+`try/catch` around the whole read and the empty result on failure all stay: a host that will not
+answer costs the diamonds and not the palette.
 
 ## Why the sampler, and not a click
 
@@ -41,9 +44,9 @@ pixel it came from once the cursor has moved.
 | ------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/uxp/color-samplers.ts` (new)           | `readPickedColors()`                                          | The one place that knows the host's sampler collection. Returns plain colors, so nothing downstream touches a Photoshop object.         |
 | `src/algorithms/types.ts`                   | `PickedColor`                                                 | A color with a position on the wheel and nothing else — no weight, because a picked point does not cover any share of the image.        |
-| `src/bridge/messages.ts`                    | `picked` on the analysis payload, capped and validated        | Same trip as the palette it sits beside; a separate message could arrive out of step and draw rings for a frame that has moved on.      |
+| `src/bridge/messages.ts`                    | `picked` on the analysis payload, capped and validated        | Same trip as the palette it sits beside; a separate message could arrive out of step and draw diamonds for a frame that has moved on.   |
 | `src/uxp/pixel-pipeline.ts`                 | Reads the samplers, and counts them in "has anything changed" | The dedupe added for the idle poll compares pixels, and moving a sampler changes no pixels — without this the ring would not follow it. |
-| `webview-ui/src/components/color-wheel.tsx` | Draws the rings                                               | Same coordinate space as the dots, so a ring and a dot at the same hue land on the same spot.                                           |
+| `webview-ui/src/components/color-wheel.tsx` | Draws the diamonds                                            | Same coordinate space as the dots, so a diamond and a dot at the same hue land on the same spot.                                        |
 
 ## What picked points do not do
 
@@ -95,7 +98,7 @@ out of detection, which is the same boundary from the other side.
 
 ## Interfaces
 
-- **UI**: rings on the wheel. No new control, no new panel state — placing a sampler is done in
+- **UI**: diamonds on the wheel. No new control, no new panel state — placing a sampler is done in
   Photoshop.
 - **Code**: `AnalysisMessage["payload"]` gains `picked`, and `BRIDGE_VERSION` goes from 3 to 4 —
   an older receiver would drop the field silently, and an older sender is now missing one.
