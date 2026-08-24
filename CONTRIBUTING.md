@@ -119,6 +119,17 @@ in the job list rather than hiding inside one aggregate command.
 Nothing here needs macOS or Photoshop. Every check is plain Node, and the lockfiles carry each platform
 variant of `esbuild`, so `--frozen-lockfile` resolves the Linux binary without touching `yarn.lock`.
 
+### Hosted runs need the account to be in good standing
+
+Standard runners are free on public repositories, but "free" is not the same as "unconditional". While
+this repo was private, a hosted run ended before its first step with:
+
+> The job was not started because [redacted]
+> be increased.
+
+[redacted]
+[redacted]
+
 [redacted]
 
 Worth writing down, because the reasoning is the kind that gets rediscovered the hard way.
