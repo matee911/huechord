@@ -12,10 +12,9 @@ const workflow = readFileSync(
 );
 
 // This job checks out a branch and then runs that branch's own config files
-// and tests. On a hosted runner that is a disposable VM; on somebody's machine
-// it is arbitrary code execution as that user, which is what CI here used to
-// be. Going back has to fail a test rather than pass review as one changed
-// line — see the CI section of CONTRIBUTING for what it cost.
+// and tests. On a hosted runner that is a disposable VM; anywhere else it is
+// arbitrary code execution as whoever owns the machine. Moving it has to fail
+// a test rather than pass review as one changed line.
 describe("ci workflow", () => {
   it("runs on a hosted runner, not on anybody's machine", () => {
     expect(workflow).toContain("runs-on: ubuntu-latest");

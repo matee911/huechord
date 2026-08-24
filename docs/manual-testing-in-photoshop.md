@@ -45,8 +45,8 @@ Notes worth having up front:
   by window ID is the only way to see it while a terminal sits on top.
 - `osascript` cannot click: `click at` returns "osascript is not allowed assistive access", even
   though reading the accessibility tree through System Events works.
-- The screen is 3840×2160 pixels but 1920×1080 points. Clicks take points, screenshots produce
-  pixels, so halve any coordinate read off an image.
+- On a HiDPI display, clicks take points while screenshots come out in pixels — two pixels to a
+  point — so halve any coordinate read off an image.
 - The first `do javascript` call raises a macOS permission dialog and blocks until someone answers it.
 - Reload the plugin with **Reload** in its row in UDT (raise the main window first). Reopen the panel
   from **Plugins → Huechord → Huechord** — that entry is a toggle, so check the

@@ -10,10 +10,6 @@ permissions:
 
 jobs:
   test:
-    # A hosted runner, deliberately: this job builds and executes code from the
-    # branch under test, so it belongs in a VM that is thrown away afterwards
-    # rather than on anybody's own machine. Nothing here needs macOS -- every
-    # check is plain Node, and the lockfiles carry the Linux esbuild binary.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

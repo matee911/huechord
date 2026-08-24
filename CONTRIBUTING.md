@@ -112,49 +112,20 @@ docs: update algorithm analysis with octree option
 
 ## CI
 
-CI runs on a GitHub-hosted `ubuntu-latest` runner. `.github/workflows/ci.yml` runs the same five checks
-as `yarn verify` — lint, format, typecheck, test, build — as separate steps, so a failure names itself
-in the job list rather than hiding inside one aggregate command.
+CI runs on GitHub-hosted `ubuntu-latest`. `.github/workflows/ci.yml` runs the same five checks as
+`yarn verify` — lint, format, typecheck, test, build — as separate steps, so a failure names itself in
+the job list rather than hiding inside one aggregate command.
 
 Nothing here needs macOS or Photoshop. Every check is plain Node, and the lockfiles carry each platform
 variant of `esbuild`, so `--frozen-lockfile` resolves the Linux binary without touching `yarn.lock`.
 
-### Hosted runs need the account to be in good standing
+`src/__tests__/ci-workflow.test.ts` holds the workflow to three things: the job runs on a hosted
+runner, the token stays read-only, and every step of `yarn verify` also appears in CI. The last one
+matters most — a check that exists locally and not here passes review by looking green in the wrong
+place.
 
-Standard runners are free on public repositories, but "free" is not the same as "unconditional". While
-this repo was private, a hosted run ended before its first step with:
-
-> The job was not started because [redacted]
-> be increased.
-
-[redacted]
-[redacted]
-
-[redacted]
-
-Worth writing down, because the reasoning is the kind that gets rediscovered the hard way.
-
-[redacted]
-[redacted]
-[redacted]
-[redacted]
-[redacted]. Not only through dependencies — `yarn lint`, `yarn typecheck` and
-`yarn test` load `eslint.config.js`, `vitest.config.ts` and every test file _from the branch under
-test_. The runner was not ephemeral either, and a second repository's runner shared the same account,
-so the blast radius was wider than one repo.
-
-That was documented as a knowingly accepted risk, and the acceptance rested on the repo being private
-with a single collaborator. Making it public revokes exactly that: a fork's pull request turns into
-[redacted]
-
-Public repositories get standard hosted runners at no charge, so the reason to accept the risk
-disappeared at the same moment the risk grew. The job now runs in a disposable VM, with a read-only
-token, no repository secrets, and no fork guard to maintain — a contributor's pull request is checked
-like anyone else's.
-
-[redacted]
-stops being read-only, or if a step in `yarn verify` is missing from CI. The point is that going back
-has to be a decision someone writes down, not a line that slips in.
+Nothing on GitHub blocks a merge on a red run, so the pre-push hook is the gate that actually stops
+anything.
 
 ## Code Guidelines
 
